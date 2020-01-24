@@ -2,30 +2,14 @@
 //
 //
 
-// GLEW_STATIC force le linkage statique
-// c-a-d que le code de glew est directement injecte dans l'executable
+
 #define GLEW_STATIC
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 
-// les repertoires d'includes sont:
-// ../libs/glfw-3.3/include			fenetrage
-// ../libs/glew-2.1.0/include		extensions OpenGL
-// ../libs/stb						gestion des images (entre autre)
-
-// les repertoires des libs sont (en 64-bit):
-// ../libs/glfw-3.3/lib-vc2015
-// ../libs/glew-2.1.0/lib/Release/x64
-
-// Pensez a copier les dll dans le repertoire x64/Debug, cad:
-// glfw-3.3/lib-vc2015/glfw3.dll
-// glew-2.1.0/bin/Release/x64/glew32.dll		si pas GLEW_STATIC
-
-// _WIN32 indique un programme Windows
-// _MSC_VER indique la version du compilateur VC++
 #if defined(_WIN32) && defined(_MSC_VER)
 #pragma comment(lib, "glfw3dll.lib")
-#pragma comment(lib, "glew32s.lib")			// glew32.lib si pas GLEW_STATIC
+#pragma comment(lib, "glew32s.lib")			
 #pragma comment(lib, "opengl32.lib")
 #elif defined(__APPLE__)
 #elif defined(__linux__)
@@ -375,6 +359,7 @@ void Initialize()
 
 	//Load OBJ
 	loadModel("suzanne.obj");
+	loadModel("teapot.obj");
 	
 	g_TextureObject = LoadTexture("suzanne.jpg");
 	glActiveTexture(GL_TEXTURE0);
@@ -416,8 +401,8 @@ void Display(GLFWwindow* window)
 
 	//Culling and depth buffer
 	glEnable(GL_CULL_FACE);
-	glFrontFace(GL_CCW);
-	glCullFace(GL_FRONT);
+	glFrontFace(GL_CW);
+	glCullFace(GL_BACK);
 	glEnable(GL_DEPTH_TEST);
 	glDepthMask(GL_TRUE);
 
@@ -433,7 +418,8 @@ void Display(GLFWwindow* window)
 	Matrix4 projectionMatrix;
 	Matrix4 viewMatrix;
 	Vec3 camPos(0.f, 0.f, -5.f);
-	//Matrix update
+
+	//-----------------------------------------------------Matrix update---------------------------------------------------------------------
 	modelMatrix = modelMatrix.Scale(1.f) * modelMatrix.Rotate(Vec3(0.0f, currentTime, currentTime)) * modelMatrix.Translate(0.f, -0.7f, 0.f);
 	//projectionMatrix = projectionMatrix.Ortho(-windowWidth/2, windowWidth/2, -windowHeight/2, windowHeight/2, -1, 1);
 	projectionMatrix = projectionMatrix.Perspective(60, windowWidth / (float)windowHeight, 0.0001f, 100.f);
@@ -464,7 +450,7 @@ void Display(GLFWwindow* window)
 
 int main(void)
 {
-	/* Initialize the library */
+
 	if (!glfwInit())
 		return -1;
 
@@ -489,10 +475,6 @@ int main(void)
 	projectionMatrixLocation = glGetUniformLocation(g_basicShader.GetProgram(), "u_projectionMatrix");
 	cameraPos_location = glGetUniformLocation(g_basicShader.GetProgram(), "u_camPos");
 
-
-
-	//glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-
 	/* Loop until the user closes the window */
 	while (!glfwWindowShouldClose(window))
 	{
@@ -512,7 +494,6 @@ int main(void)
 		glfwPollEvents();
 	}
 
-	// ne pas oublier de liberer la memoire etc...
 	Shutdown();
 
 	glfwTerminate();
