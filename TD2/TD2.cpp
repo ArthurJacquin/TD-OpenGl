@@ -62,8 +62,8 @@ GLuint VAO2D;
 GLuint VBO2D;
 GLShader g_2DShader;
 
-//Load texture
-GLuint colorTexture;
+//Load colorBuffer
+GLuint colorBufferTexture;
 
 Mesh mesh;
 float currentTime;
@@ -211,11 +211,31 @@ void InitBuffers()
 	int texture_location = glGetUniformLocation(program, "u_TextureSampler");
 	glUniform1i(texture_location, g_TextureObject);
 
-	// Position de la lumiere
+	//Désactivation des buffers
+	glBindVertexArray(0);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+}
+
+void SetUniform()
+{
+	uint32_t program = g_basicShader.GetProgram();
+
+	//------------------------------------------------- Position de la lumiere-----------------------------------------------
 	int lightPos_location = glGetUniformLocation(program, "u_light.pos");
 	glUniform3f(lightPos_location, 0.5f, 0.0f, -2.0f);
 	int lightColor_location = glGetUniformLocation(program, "u_light.color");
 	glUniform3f(lightColor_location, 1.0f, 1.0f, 1.0f);
+
+	//-------------------------------------------------------Paramètre lumière------------------------------------------------
+	int lightPos_Ia = glGetUniformLocation(program, "u_light.Ia");
+	glUniform1f(lightPos_location, 1.0f);
+	//ambient
+	int lightPos_Id = glGetUniformLocation(program, "u_light.Id");
+	glUniform3f(lightPos_Id, 1.0f, 1.0f, 1.0f);
+	//specular
+	int lightPos_Is = glGetUniformLocation(program, "u_light.Is");
+	glUniform3f(lightPos_Is, 1.0f, 1.0f, 1.0f);
 
 	// -------------------------------------------------------Materiau--------------------------------------------------------
 	//Ambient
@@ -231,26 +251,23 @@ void InitBuffers()
 	int shininessPos_location = glGetUniformLocation(program, "u_mat.shininess");
 	glUniform1i(shininessPos_location, mesh.mat.shininess);
 
-	//Désactivation des buffers
-	glBindVertexArray(0);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
 //Init FBO
 void InitFBO()
 {
+
 	glEnable(GL_FRAMEBUFFER_SRGB);
 
 	//Création
 	glGenFramebuffers(1, &FBO);
 	glBindFramebuffer(GL_FRAMEBUFFER, FBO);
 
-	glGenTextures(1, &colorTexture);
-	glBindTexture(GL_TEXTURE_2D, colorTexture);
+	glGenTextures(1, &colorBufferTexture);
+	glBindTexture(GL_TEXTURE_2D, colorBufferTexture);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, windowWidth, windowHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, colorTexture, 0);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, colorBufferTexture, 0);
 
 	//Load Depth
 	GLuint textureDepth = 0;
@@ -326,7 +343,7 @@ void Render2D()
 
 	glUseProgram(g_2DShader.GetProgram());
 	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, colorTexture);
+	glBindTexture(GL_TEXTURE_2D, colorBufferTexture);
 	glBindVertexArray(VAO2D);
 
 	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
@@ -364,6 +381,7 @@ void Initialize()
 	glBindTexture(GL_TEXTURE_2D, g_TextureObject);
 
 	//glUseProgram(g_basicShader.GetProgram());
+
 	InitFBO();
 	InitBuffers();
 	Init2DRender();
@@ -399,7 +417,7 @@ void Display(GLFWwindow* window)
 	//Culling and depth buffer
 	glEnable(GL_CULL_FACE);
 	glFrontFace(GL_CCW);
-	glCullFace(GL_BACK);
+	glCullFace(GL_FRONT);
 	glEnable(GL_DEPTH_TEST);
 	glDepthMask(GL_TRUE);
 
@@ -480,7 +498,11 @@ int main(void)
 	{
 
 		/* Render here */
+		//3D
 		Display(window);
+		// Uniform for 3D render
+		SetUniform();
+		//2D
 		Render2D();
 
 		/* Swap front and back buffers */

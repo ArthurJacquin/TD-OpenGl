@@ -1,3 +1,5 @@
+#version 420
+
 struct Light{
 	vec3 pos;		 // Position de la source
 	vec3 dirToLight; // Direction du point VERS la lumière
@@ -27,24 +29,20 @@ void main(void)
 {
 	vec4 texColor = texture2D(u_TextureSampler,	v_texcoords); 
 	vec4 fragColor = texColor; //Base color of the frag
-	v_normals = normalize(v_normals);
 	
 	//Light
-	u_light.dirToLight = normalize(u_light.pos - v_fragPos);
+	vec3 dirToLight = normalize(u_light.pos - v_fragPos);
 	
 	//Ambient
-	u_light.Ia = 1.0f;
 	vec4 ambient = vec4(u_light.Ia * u_mat.Ka * u_light.color, 1.0f);
 
 	//Diffuse
-	u_light.Id = vec3(1.0f, 1.0f, 1.0f);
-	vec4 diffuseColor = vec4(dot(v_normals, u_light.dirToLight) * u_light.Id * u_mat.Kd, 1.0f);
+	vec4 diffuseColor = vec4(dot(v_normals, dirToLight) * u_light.Id * u_mat.Kd, 1.0f);
 	
 	//Speculaire
-	u_light.Is = vec3(1.0f, 1.0f, 1.0f);
 	vec3 dirToCam = normalize(u_camPos - v_fragPos);
-	vec3 H = normalize(u_light.dirToLight + dirToCam);
-	vec3 spec = max(pow(dot(dirToCam, H), u_mat.shininess), 0.0);
+	vec3 H = normalize(dirToLight + dirToCam);
+	float spec = max(pow(dot(dirToCam, H), u_mat.shininess), 0.0);
 	vec4 specularColor = vec4(spec * u_light.Is * u_mat.Ks, 1.0f);
 
 	gl_FragColor = (ambient + diffuseColor + specularColor) * fragColor;	
