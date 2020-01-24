@@ -33,12 +33,13 @@ using namespace std;
 
 // variables globales (dans le cadre de cet exemple, evitez les globales si possible)
 GLShader g_basicShader;
+GLShader g_teapotShader;
 GLuint g_TextureObject;
+GLuint g_TextureObjectTeapot;
 
 //Buffers
 GLuint VAO;
-GLuint VBO;
-GLuint IBO;
+GLuint VAOTP;
 GLuint FBO;
 
 //Buffers 2D
@@ -50,11 +51,20 @@ GLShader g_2DShader;
 GLuint colorBufferTexture;
 
 Mesh mesh;
+Mesh teapot;
+
 float currentTime;
 
 GLFWwindow* window;
 int windowWidth = 800;
 int windowHeight = 600;
+
+int timeLocation;
+int modelMatrixLocation;
+int viewMatrixLocation;
+int projectionMatrixLocation;
+int cameraPos_location;
+
 
 GLuint LoadTexture(const char* path)
 {
@@ -158,8 +168,10 @@ void loadModel(const string path)
 }
 
 //Init VAO, VBO and IBO
-void InitBuffers() 
+void InitBuffersSuzanne() 
 {
+	GLuint VBO;
+	GLuint IBO;
 	uint32_t program = g_basicShader.GetProgram();
 
 	//Création VAO
@@ -194,6 +206,51 @@ void InitBuffers()
 	//Texture
 	int texture_location = glGetUniformLocation(program, "u_TextureSampler");
 	glUniform1i(texture_location, g_TextureObject);
+
+	//Désactivation des buffers
+	glBindVertexArray(0);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+}
+
+void InitBuffersTeapot()
+{
+	GLuint IBOTP;
+	GLuint VBOTP;
+	uint32_t programTP = g_teapotShader.GetProgram();
+
+	//Création VAO
+	glGenVertexArrays(1, &VAOTP);
+	glBindVertexArray(VAOTP);
+
+	//Création VBO
+	glGenBuffers(1, &VBOTP);
+	glBindBuffer(GL_ARRAY_BUFFER, VBOTP);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(Vertex) * teapot.vertexCount, &teapot.vertices[0], GL_STATIC_DRAW);
+
+	//Création IBO
+	glGenBuffers(1, &IBOTP);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, IBOTP);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned short) * teapot.indices.size() - 1, &teapot.indices[0], GL_STATIC_DRAW);
+
+	//Position
+	int loc_position = glGetAttribLocation(programTP, "a_position");
+	glVertexAttribPointer(loc_position, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), nullptr);
+	glEnableVertexAttribArray(loc_position);
+
+	//UV
+	int texcoords_location = glGetAttribLocation(programTP, "a_texcoords");
+	glVertexAttribPointer(texcoords_location, 3, GL_FLOAT, false, sizeof(Vertex), (void*)offsetof(Vertex, texCoord.x));
+	glEnableVertexAttribArray(texcoords_location);
+
+	//Normals
+	int normals_location = glGetAttribLocation(programTP, "a_normals");
+	glVertexAttribPointer(normals_location, 3, GL_FLOAT, false, sizeof(Vertex), (void*)offsetof(Vertex, normal.x));
+	glEnableVertexAttribArray(normals_location);
+
+	//Texture
+	int texture_location = glGetUniformLocation(programTP, "u_TextureSampler");
+	glUniform1i(texture_location, g_TextureObjectTeapot);
 
 	//Désactivation des buffers
 	glBindVertexArray(0);
@@ -240,7 +297,6 @@ void SetUniform()
 //Init FBO
 void InitFBO()
 {
-
 	glEnable(GL_FRAMEBUFFER_SRGB);
 
 	//Création
@@ -352,6 +408,10 @@ void Initialize()
 	g_basicShader.LoadFragmentShader("basic.fs.glsl");
 	g_basicShader.Create();
 
+	g_teapotShader.LoadVertexShader("teapotShader.vs.glsl");
+	g_teapotShader.LoadFragmentShader("teapotShader.fs.glsl");
+	g_teapotShader.Create();
+
 	//Link shaders 2D
 	g_2DShader.LoadVertexShader("postprocess.vs.glsl");
 	g_2DShader.LoadFragmentShader("postprocess.fs.glsl");
@@ -365,11 +425,27 @@ void Initialize()
 	glActiveTexture(GL_TEXTURE0);
 	glBindTexture(GL_TEXTURE_2D, g_TextureObject);
 
-	//glUseProgram(g_basicShader.GetProgram());
+	g_TextureObjectTeapot = LoadTexture("teapot.png");
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, g_TextureObjectTeapot);
 
 	InitFBO();
-	InitBuffers();
+	InitBuffersSuzanne();
+	//InitBuffersTeapot();
 	Init2DRender();
+
+	//Uniforms
+	timeLocation = glGetUniformLocation(g_basicShader.GetProgram(), "u_time");
+	modelMatrixLocation = glGetUniformLocation(g_basicShader.GetProgram(), "u_modelMatrix");
+	viewMatrixLocation = glGetUniformLocation(g_basicShader.GetProgram(), "u_viewMatrix");
+	projectionMatrixLocation = glGetUniformLocation(g_basicShader.GetProgram(), "u_projectionMatrix");
+	cameraPos_location = glGetUniformLocation(g_basicShader.GetProgram(), "u_camPos");
+
+	timeLocation = glGetUniformLocation(g_teapotShader.GetProgram(), "u_time");
+	modelMatrixLocation = glGetUniformLocation(g_teapotShader.GetProgram(), "u_modelMatrix");
+	viewMatrixLocation = glGetUniformLocation(g_teapotShader.GetProgram(), "u_viewMatrix");
+	projectionMatrixLocation = glGetUniformLocation(g_teapotShader.GetProgram(), "u_projectionMatrix");
+	cameraPos_location = glGetUniformLocation(g_teapotShader.GetProgram(), "u_camPos");
 }
 
 void Shutdown()
@@ -377,14 +453,9 @@ void Shutdown()
 	DestroyTexture(&g_TextureObject);
 	glDeleteFramebuffers(1, &FBO);
 	g_basicShader.Destroy();
+	g_teapotShader.Destroy();
 	g_2DShader.Destroy();
 }
-
-int timeLocation;
-int modelMatrixLocation;
-int viewMatrixLocation;
-int projectionMatrixLocation;
-int cameraPos_location;
 
 void Display(GLFWwindow* window)
 {
@@ -398,7 +469,6 @@ void Display(GLFWwindow* window)
 	glViewport(0, 0, width, height);
 	glClearColor(0.5f, 0.5f, 0.5f, 1.f);
 
-
 	//Culling and depth buffer
 	glEnable(GL_CULL_FACE);
 	glFrontFace(GL_CW);
@@ -408,6 +478,7 @@ void Display(GLFWwindow* window)
 
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+	//-----------------------------------------------------Suzanne model---------------------------------------------------------------------
 	glUseProgram(g_basicShader.GetProgram());
 
 	//Time
@@ -419,7 +490,6 @@ void Display(GLFWwindow* window)
 	Matrix4 viewMatrix;
 	Vec3 camPos(0.f, 0.f, -5.f);
 
-	//-----------------------------------------------------Matrix update---------------------------------------------------------------------
 	modelMatrix = modelMatrix.Scale(1.f) * modelMatrix.Rotate(Vec3(0.0f, currentTime, currentTime)) * modelMatrix.Translate(0.f, -0.7f, 0.f);
 	//projectionMatrix = projectionMatrix.Ortho(-windowWidth/2, windowWidth/2, -windowHeight/2, windowHeight/2, -1, 1);
 	projectionMatrix = projectionMatrix.Perspective(60, windowWidth / (float)windowHeight, 0.0001f, 100.f);
@@ -439,6 +509,21 @@ void Display(GLFWwindow* window)
 	*/
 	glBindVertexArray(VAO);
 	glDrawElements(GL_TRIANGLES, mesh.vertexCount, GL_UNSIGNED_SHORT, nullptr);
+
+	glBindVertexArray(0);
+	//---------------------------------------------------Teapot model---------------------------------------------------------------------------
+	glUseProgram(g_teapotShader.GetProgram());
+
+	Matrix4 modelMatrixTeapot;
+	modelMatrixTeapot = modelMatrixTeapot.Scale(1.f) * modelMatrixTeapot.Rotate(Vec3(0.0f, 0.0f, -currentTime)) * modelMatrixTeapot.Translate(2.f, -2.f, 0.f) * modelMatrixTeapot.Rotate(Vec3(currentTime, 0.0f, 0.0f));
+	glUniformMatrix4fv(modelMatrixLocation, 1, GL_FALSE, modelMatrixTeapot.getMatrix());
+	glUniformMatrix4fv(projectionMatrixLocation, 1, GL_FALSE, projectionMatrix.getMatrix());
+	glUniformMatrix4fv(viewMatrixLocation, 1, GL_FALSE, viewMatrix.getMatrix());
+	glUniform3f(cameraPos_location, camPos.x, camPos.y, camPos.z);
+
+	glBindVertexArray(VAOTP);
+	glDrawElements(GL_TRIANGLES, teapot.vertexCount, GL_UNSIGNED_SHORT, nullptr);
+
 	
 	glBindVertexArray(0);
 	
@@ -467,13 +552,6 @@ int main(void)
 
 	// toutes nos initialisations vont ici
 	Initialize();
-
-	//Uniforms
-	timeLocation = glGetUniformLocation(g_basicShader.GetProgram(), "u_time");
-	modelMatrixLocation = glGetUniformLocation(g_basicShader.GetProgram(), "u_modelMatrix");
-	viewMatrixLocation = glGetUniformLocation(g_basicShader.GetProgram(), "u_viewMatrix");
-	projectionMatrixLocation = glGetUniformLocation(g_basicShader.GetProgram(), "u_projectionMatrix");
-	cameraPos_location = glGetUniformLocation(g_basicShader.GetProgram(), "u_camPos");
 
 	/* Loop until the user closes the window */
 	while (!glfwWindowShouldClose(window))
