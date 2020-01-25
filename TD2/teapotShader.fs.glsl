@@ -28,9 +28,8 @@ uniform vec3 u_camPos;
 void main(void)
 {
 	vec4 texColor = texture2D(u_TextureSampler,	v_texcoords); 
-	//vec4 fragColor = texColor; //Base color of the frag
-	vec4 fragColor = vec4(1.0, 0.0, 0.0, 1.0);
-
+	vec4 fragColor = texColor; //Base color of the frag
+	
 	//Light
 	vec3 dirToLight = normalize(u_light.pos - v_fragPos);
 	
@@ -46,5 +45,5 @@ void main(void)
 	float spec = max(pow(dot(dirToCam, H), u_mat.shininess), 0.0);
 	vec4 specularColor = vec4(spec * u_light.Is * u_mat.Ks, 1.0f);
 
-	gl_FragColor = fragColor;	
+	gl_FragColor = (ambient + diffuseColor + specularColor) * fragColor;	
 }

@@ -98,7 +98,7 @@ void DestroyTexture(GLuint* textureID)
 	textureID = 0;
 }
 
-void loadModel(const string path)
+void loadModel(const string path, Mesh& meshes)
 {
 	tinyobj::attrib_t attrib;
 	std::vector<tinyobj::shape_t> shapes;
@@ -140,30 +140,27 @@ void loadModel(const string path)
 				};
 
 			//Add vertices and indices to the mesh
-			mesh.indices.push_back(mesh.indices.size());
-			mesh.vertices.push_back(vertex);
+			meshes.indices.push_back(meshes.indices.size());
+			meshes.vertices.push_back(vertex);
 		}
-
-		
-		
 	}
-	mesh.vertexCount = mesh.vertices.size() - 1;
+	meshes.vertexCount = meshes.vertices.size() - 1;
 
 	for (size_t f = 0; f < materials.size(); f++)
 	{
-		mesh.mat.Ka = { materials[f].ambient[0],
+		meshes.mat.Ka = { materials[f].ambient[0],
 						materials[f].ambient[1],
 						materials[f].ambient[2] };
 
-		mesh.mat.Kd = { materials[f].diffuse[0],
+		meshes.mat.Kd = { materials[f].diffuse[0],
 						materials[f].diffuse[1],
 						materials[f].diffuse[2] };
 
-		mesh.mat.Ks = { materials[f].specular[0],
+		meshes.mat.Ks = { materials[f].specular[0],
 						materials[f].specular[1],
 						materials[f].specular[2] };
 
-		mesh.mat.shininess = materials[f].shininess;
+		meshes.mat.shininess = materials[f].shininess;
 	}
 }
 
@@ -258,9 +255,9 @@ void InitBuffersTeapot()
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
-void SetUniform()
+void SetUniform(GLShader &shader)
 {
-	uint32_t program = g_basicShader.GetProgram();
+	uint32_t program = shader.GetProgram();
 
 	//------------------------------------------------- Position de la lumiere-----------------------------------------------
 	int lightPos_location = glGetUniformLocation(program, "u_light.pos");
@@ -418,8 +415,8 @@ void Initialize()
 	g_2DShader.Create();
 
 	//Load OBJ
-	loadModel("suzanne.obj");
-	loadModel("teapot.obj");
+	loadModel("suzanne.obj", mesh);
+	loadModel("teapot.obj", teapot);
 	
 	g_TextureObject = LoadTexture("suzanne.jpg");
 	glActiveTexture(GL_TEXTURE0);
@@ -431,7 +428,7 @@ void Initialize()
 
 	InitFBO();
 	InitBuffersSuzanne();
-	//InitBuffersTeapot();
+	InitBuffersTeapot();
 	Init2DRender();
 
 	//Uniforms
@@ -481,6 +478,8 @@ void Display(GLFWwindow* window)
 	//-----------------------------------------------------Suzanne model---------------------------------------------------------------------
 	glUseProgram(g_basicShader.GetProgram());
 
+	SetUniform(g_basicShader);
+
 	//Time
 	currentTime = (float)glfwGetTime();
 	glUniform1f(timeLocation, currentTime);
@@ -500,7 +499,7 @@ void Display(GLFWwindow* window)
 	glUniformMatrix4fv(projectionMatrixLocation, 1, GL_FALSE, projectionMatrix.getMatrix());
 	glUniformMatrix4fv(viewMatrixLocation, 1, GL_FALSE, viewMatrix.getMatrix());
 	glUniform3f(cameraPos_location, camPos.x, camPos.y, camPos.z);
-
+	
 	//Active VAO -> Render -> reset VAO
 	/*
 	glBindFramebuffer(GL_FRAMEBUFFER, FBO);
@@ -510,9 +509,10 @@ void Display(GLFWwindow* window)
 	glBindVertexArray(VAO);
 	glDrawElements(GL_TRIANGLES, mesh.vertexCount, GL_UNSIGNED_SHORT, nullptr);
 
-	glBindVertexArray(0);
+	//glBindVertexArray(0);
 	//---------------------------------------------------Teapot model---------------------------------------------------------------------------
 	glUseProgram(g_teapotShader.GetProgram());
+	SetUniform(g_teapotShader);
 
 	Matrix4 modelMatrixTeapot;
 	modelMatrixTeapot = modelMatrixTeapot.Scale(1.f) * modelMatrixTeapot.Rotate(Vec3(0.0f, 0.0f, -currentTime)) * modelMatrixTeapot.Translate(2.f, -2.f, 0.f) * modelMatrixTeapot.Rotate(Vec3(currentTime, 0.0f, 0.0f));
@@ -523,7 +523,6 @@ void Display(GLFWwindow* window)
 
 	glBindVertexArray(VAOTP);
 	glDrawElements(GL_TRIANGLES, teapot.vertexCount, GL_UNSIGNED_SHORT, nullptr);
-
 	
 	glBindVertexArray(0);
 	
@@ -560,8 +559,6 @@ int main(void)
 		/* Render here */
 		//3D
 		Display(window);
-		// Uniform for 3D render
-		SetUniform();
 		//2D
 		Render2D();
 
