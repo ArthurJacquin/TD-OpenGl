@@ -36,6 +36,7 @@ GLShader g_basicShader;
 GLShader g_teapotShader;
 GLuint g_TextureObject;
 GLuint g_TextureObjectTeapot;
+GLuint texturesID[3];
 
 //Buffers
 GLuint VAO;
@@ -66,30 +67,27 @@ int projectionMatrixLocation;
 int cameraPos_location;
 
 
-GLuint LoadTexture(const char* path)
+GLuint LoadTexture(const char* path, int index)
 {
 	// 1. chargement de la bitmap
 	int w, h, c;
 	uint8_t* data = stbi_load(path, &w, &h, &c, STBI_rgb_alpha);
 	// 2. creation du texture object OpenGL
-	GLuint TextureID = 0;
-	glGenTextures(1, &TextureID);
+	glGenTextures(index, &texturesID[index]);
 	// 3. chargement et parametrage
 	// pour pouvoir travailler sur/avec la texture
 	// on doit d'abord la "bind" / attacher sur un identifiant
 	// en l'occurence GL_TEXTURE_2D
-	glBindTexture(GL_TEXTURE_2D, TextureID);
+	glBindTexture(GL_TEXTURE_2D, texturesID[index]);
 	// les 6 premiers params definissent le stockage de la texture en VRAM (memoire video)
 	// les 3 derniers specifient l'image source
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, w, h, 0,
-		GL_RGBA, GL_UNSIGNED_BYTE, data);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER,
-		GL_LINEAR);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	// on remet la valeur par defaut (pas obligatoire mais preferable ici)
 	glBindTexture(GL_TEXTURE_2D, 0);
 	// 4. liberation de la memoire
 	stbi_image_free(data);
-	return TextureID;
+	return texturesID[index];
 }
 
 void DestroyTexture(GLuint* textureID)
@@ -202,7 +200,7 @@ void InitBuffersSuzanne()
 
 	//Texture
 	int texture_location = glGetUniformLocation(program, "u_TextureSampler");
-	glUniform1i(texture_location, g_TextureObject);
+	glUniform1i(texture_location, texturesID[1]);
 
 	//Désactivation des buffers
 	glBindVertexArray(0);
@@ -247,7 +245,7 @@ void InitBuffersTeapot()
 
 	//Texture
 	int texture_location = glGetUniformLocation(programTP, "u_TextureSampler");
-	glUniform1i(texture_location, g_TextureObjectTeapot);
+	glUniform1i(texture_location, texturesID[2]);
 
 	//Désactivation des buffers
 	glBindVertexArray(0);
@@ -300,11 +298,11 @@ void InitFBO()
 	glGenFramebuffers(1, &FBO);
 	glBindFramebuffer(GL_FRAMEBUFFER, FBO);
 
-	glGenTextures(1, &colorBufferTexture);
-	glBindTexture(GL_TEXTURE_2D, colorBufferTexture);
+	glGenTextures(1, &texturesID[0]);
+	glBindTexture(GL_TEXTURE_2D, texturesID[0]);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, windowWidth, windowHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, colorBufferTexture, 0);
+	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texturesID[0], 0);
 
 	//Load Depth
 	GLuint textureDepth = 0;
@@ -380,7 +378,7 @@ void Render2D()
 
 	glUseProgram(g_2DShader.GetProgram());
 	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, colorBufferTexture);
+	glBindTexture(GL_TEXTURE_2D, texturesID[0]);
 	glBindVertexArray(VAO2D);
 
 	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
@@ -418,13 +416,13 @@ void Initialize()
 	loadModel("suzanne.obj", mesh);
 	loadModel("teapot.obj", teapot);
 	
-	g_TextureObject = LoadTexture("suzanne.jpg");
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, g_TextureObject);
+	g_TextureObject = LoadTexture("suzanne.jpg", 2);
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, texturesID[1]);
 
-	g_TextureObjectTeapot = LoadTexture("teapot.png");
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, g_TextureObjectTeapot);
+	g_TextureObjectTeapot = LoadTexture("teapot.png", 1);
+	glActiveTexture(GL_TEXTURE2);
+	glBindTexture(GL_TEXTURE_2D, texturesID[2]);
 
 	InitFBO();
 	InitBuffersSuzanne();
@@ -447,8 +445,12 @@ void Initialize()
 
 void Shutdown()
 {
-	DestroyTexture(&g_TextureObject);
+	DestroyTexture(&texturesID[0]);
+	DestroyTexture(&texturesID[1]);
+	DestroyTexture(&texturesID[2]);
+
 	glDeleteFramebuffers(1, &FBO);
+
 	g_basicShader.Destroy();
 	g_teapotShader.Destroy();
 	g_2DShader.Destroy();
