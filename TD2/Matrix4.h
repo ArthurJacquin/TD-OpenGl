@@ -22,6 +22,7 @@ public:
 
 	Matrix4& operator=(Matrix4);
 	Matrix4 operator*(const Matrix4& m);
+	Vec3 operator*(const Vec3& v);
 	float& operator[](int id);
 
 	void Debug();

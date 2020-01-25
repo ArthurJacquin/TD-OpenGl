@@ -17,6 +17,7 @@
 
 #include <iostream>
 #include <vector>
+#include <math.h>
 
 #include "Vertex.h"
 #include "Matrix4.h"
@@ -28,6 +29,8 @@
 #include "stb_image.h"
 #define TINYOBJLOADER_IMPLEMENTATION
 #include "../libs/tinyobjloader/tiny_obj_loader.h"
+
+#define PI 3.14159265359
 
 using namespace std;
 
@@ -59,6 +62,16 @@ float currentTime;
 GLFWwindow* window;
 int windowWidth = 800;
 int windowHeight = 600;
+
+//Camera position
+Vec3 camPos(0.f, 0.f, 5.f);
+float lastCamX = windowWidth / 2;
+float lastCamY = windowHeight / 2;
+float pitch = 0;
+float yaw = 0;
+bool firstMouse = true;
+float FOV = 60;
+
 
 int timeLocation;
 int modelMatrixLocation;
@@ -443,6 +456,50 @@ void Initialize()
 	cameraPos_location = glGetUniformLocation(g_teapotShader.GetProgram(), "u_camPos");
 }
 
+//Update camera pos
+static void mouse_callback(GLFWwindow* window, double xpos, double ypos)
+{
+	if (firstMouse)
+	{
+		lastCamX = windowWidth / 2;
+		lastCamY = windowHeight / 2;
+		firstMouse = false;
+	}
+
+	float xoffset = (xpos - lastCamX) / 100.f;
+	float yoffset = (lastCamY - ypos) / 100.f;
+	lastCamX = xpos;
+	lastCamY = ypos;
+
+
+	Matrix4 mat;
+	Vec3 oldCam = camPos;
+	camPos = mat.Rotate(Vec3(yoffset, xoffset, 0.0f)) * mat.Translate(camPos.x, camPos.y, camPos.z) * Vec3(0.f, 0.f, 0.f);
+}
+
+//Zoom
+void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
+{
+	float zoomSpeed = 2.0f;
+	FOV += yoffset * zoomSpeed;
+
+	if (FOV <= 1.0f)
+		FOV = 1.0f;
+
+}
+
+void InitInputs() {
+	
+	//Disable cursor
+	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+
+	//Cursor Position callback
+	glfwSetCursorPosCallback(window, mouse_callback);
+
+	//Scroll callback
+	glfwSetScrollCallback(window, scroll_callback);
+}
+
 void Shutdown()
 {
 	DestroyTexture(&texturesID[0]);
@@ -477,24 +534,25 @@ void Display(GLFWwindow* window)
 
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+	//----------------------------------------Matrix---------------------------------------------------
+
+	Matrix4 modelMatrix;
+	Matrix4 projectionMatrix;
+	Matrix4 viewMatrix;
+
+	//projectionMatrix = projectionMatrix.Ortho(-windowWidth/2, windowWidth/2, -windowHeight/2, windowHeight/2, -1, 1);
+	projectionMatrix = projectionMatrix.Perspective(FOV, windowWidth / (float)windowHeight, 0.0001f, 100.f);
+	viewMatrix = viewMatrix.LookAt(camPos, Vec3(0.0f, 0.0f, 0.0f), Vec3(0.0f, 1.0f, 0.0f));
+
 	//-----------------------------------------------------Suzanne model---------------------------------------------------------------------
 	glUseProgram(g_basicShader.GetProgram());
-
 	SetUniform(g_basicShader);
 
 	//Time
 	currentTime = (float)glfwGetTime();
 	glUniform1f(timeLocation, currentTime);
-
-	Matrix4 modelMatrix;
-	Matrix4 projectionMatrix;
-	Matrix4 viewMatrix;
-	Vec3 camPos(0.f, 0.f, -5.f);
-
+	
 	modelMatrix = modelMatrix.Scale(1.f) * modelMatrix.Rotate(Vec3(0.0f, currentTime, currentTime)) * modelMatrix.Translate(0.f, -0.7f, 0.f);
-	//projectionMatrix = projectionMatrix.Ortho(-windowWidth/2, windowWidth/2, -windowHeight/2, windowHeight/2, -1, 1);
-	projectionMatrix = projectionMatrix.Perspective(60, windowWidth / (float)windowHeight, 0.0001f, 100.f);
-	viewMatrix = viewMatrix.LookAt(camPos, Vec3(0.0f, 0.0f, 0.0f), Vec3(0.0f, -1.0f, 0.0f));
 
 	//Matrix uniforms
 	glUniformMatrix4fv(modelMatrixLocation, 1, GL_FALSE, modelMatrix.getMatrix());
@@ -512,12 +570,14 @@ void Display(GLFWwindow* window)
 	glDrawElements(GL_TRIANGLES, mesh.vertexCount, GL_UNSIGNED_SHORT, nullptr);
 
 	//glBindVertexArray(0);
+
 	//---------------------------------------------------Teapot model---------------------------------------------------------------------------
 	glUseProgram(g_teapotShader.GetProgram());
 	SetUniform(g_teapotShader);
 
 	Matrix4 modelMatrixTeapot;
-	modelMatrixTeapot = modelMatrixTeapot.Scale(1.f) * modelMatrixTeapot.Rotate(Vec3(0.0f, 0.0f, -currentTime)) * modelMatrixTeapot.Translate(2.f, -2.f, 0.f) * modelMatrixTeapot.Rotate(Vec3(currentTime, 0.0f, 0.0f));
+	modelMatrixTeapot = modelMatrixTeapot.Scale(1.f) * modelMatrixTeapot.Rotate(Vec3(0.f, 0.f, 0.0f)) * modelMatrixTeapot.Translate(0.f, 0.5f, 0.f);
+	
 	glUniformMatrix4fv(modelMatrixLocation, 1, GL_FALSE, modelMatrixTeapot.getMatrix());
 	glUniformMatrix4fv(projectionMatrixLocation, 1, GL_FALSE, projectionMatrix.getMatrix());
 	glUniformMatrix4fv(viewMatrixLocation, 1, GL_FALSE, viewMatrix.getMatrix());
@@ -553,6 +613,8 @@ int main(void)
 
 	// toutes nos initialisations vont ici
 	Initialize();
+
+	InitInputs();
 
 	/* Loop until the user closes the window */
 	while (!glfwWindowShouldClose(window))

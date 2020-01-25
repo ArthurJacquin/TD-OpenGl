@@ -166,6 +166,17 @@ Matrix4 Matrix4::operator*(const Matrix4& m )
 	return res;
 }
 
+Vec3 Matrix4::operator*(const Vec3& v)
+{
+	Vec3 res;
+
+	res.x = m_mat[0] * v.x + m_mat[4] * v.y + m_mat[8] * v.z + m_mat[12];
+	res.y = m_mat[1] * v.x + m_mat[5] * v.y + m_mat[9] * v.z + m_mat[13];
+	res.z = m_mat[2] * v.x + m_mat[6] * v.y + m_mat[10] * v.z + m_mat[14];
+
+	return res;
+}
+
 float& Matrix4::operator[](int id)
 {
 	return m_mat[id];
