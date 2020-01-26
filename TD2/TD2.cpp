@@ -44,7 +44,6 @@ GLuint texturesID[3];
 uint32_t program;
 uint32_t programTP;;
 
-
 //Buffers
 GLuint VAO;
 GLuint VAOTP;
@@ -77,11 +76,15 @@ bool firstMouse = true;
 float FOV = 60;
 
 
-int timeLocation;
 int modelMatrixLocation;
 int viewMatrixLocation;
 int projectionMatrixLocation;
 int cameraPos_location;
+
+int modelMatrixLocationTP;
+int viewMatrixLocationTP;
+int projectionMatrixLocationTP;
+int cameraPos_locationTP;
 
 
 GLuint LoadTexture(const char* path)
@@ -432,21 +435,19 @@ void Initialize()
 	Init2DRender();
 
 	//Uniforms
-	timeLocation = glGetUniformLocation(g_basicShader.GetProgram(), "u_time");
 	modelMatrixLocation = glGetUniformLocation(g_basicShader.GetProgram(), "u_modelMatrix");
 	viewMatrixLocation = glGetUniformLocation(g_basicShader.GetProgram(), "u_viewMatrix");
 	projectionMatrixLocation = glGetUniformLocation(g_basicShader.GetProgram(), "u_projectionMatrix");
 	cameraPos_location = glGetUniformLocation(g_basicShader.GetProgram(), "u_camPos");
 
-	timeLocation = glGetUniformLocation(g_teapotShader.GetProgram(), "u_time");
-	modelMatrixLocation = glGetUniformLocation(g_teapotShader.GetProgram(), "u_modelMatrix");
-	viewMatrixLocation = glGetUniformLocation(g_teapotShader.GetProgram(), "u_viewMatrix");
-	projectionMatrixLocation = glGetUniformLocation(g_teapotShader.GetProgram(), "u_projectionMatrix");
-	cameraPos_location = glGetUniformLocation(g_teapotShader.GetProgram(), "u_camPos");
+	modelMatrixLocationTP = glGetUniformLocation(g_teapotShader.GetProgram(), "u_modelMatrix");
+	viewMatrixLocationTP = glGetUniformLocation(g_teapotShader.GetProgram(), "u_viewMatrix");
+	projectionMatrixLocationTP = glGetUniformLocation(g_teapotShader.GetProgram(), "u_projectionMatrix");
+	cameraPos_locationTP = glGetUniformLocation(g_teapotShader.GetProgram(), "u_camPos");
 }
 
 //Update camera pos
-static void mouse_callback(GLFWwindow* window, double xpos, double ypos)
+void mouse_callback(GLFWwindow* window, double xpos, double ypos)
 {
 	if (firstMouse)
 	{
@@ -546,9 +547,8 @@ void Display(GLFWwindow* window)
 
 	//Time
 	currentTime = (float)glfwGetTime();
-	glUniform1f(timeLocation, currentTime);
 	
-	modelMatrix = modelMatrix.Scale(1.f) * modelMatrix.Rotate(Vec3(0.0f, currentTime, currentTime)) * modelMatrix.Translate(1.f, -1.7f, 0.f);
+	modelMatrix = modelMatrix.Scale(1.f) * modelMatrix.Rotate(Vec3(0.0f, 0.f, 0.0f)) * modelMatrix.Translate(0.f, 0.0f, 0.f);
 
 	//Matrix uniforms
 	glUniformMatrix4fv(modelMatrixLocation, 1, GL_FALSE, modelMatrix.getMatrix());
@@ -557,15 +557,9 @@ void Display(GLFWwindow* window)
 	glUniform3f(cameraPos_location, camPos.x, camPos.y, camPos.z);
 	
 	//Active VAO -> Render -> reset VAO
-	/*
-	glBindFramebuffer(GL_FRAMEBUFFER, FBO);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	glDrawElements(GL_TRIANGLES, mesh.vertexCount, GL_UNSIGNED_SHORT, nullptr);
-	*/
 	glBindVertexArray(VAO);
 	glDrawElements(GL_TRIANGLES, mesh.vertexCount, GL_UNSIGNED_SHORT, nullptr); 
-
-	//glBindVertexArray(0);
+	glBindVertexArray(0);
 
 	//---------------------------------------------------Teapot model---------------------------------------------------------------------------
 	glUseProgram(g_teapotShader.GetProgram());
@@ -581,10 +575,10 @@ void Display(GLFWwindow* window)
 	Matrix4 modelMatrixTeapot;
 	modelMatrixTeapot = modelMatrixTeapot.Scale(1.f) * modelMatrixTeapot.Rotate(Vec3(-currentTime, 0.f, -currentTime)) * modelMatrixTeapot.Translate(0.f, 0.5f, 0.f);
 	
-	glUniformMatrix4fv(modelMatrixLocation, 1, GL_FALSE, modelMatrixTeapot.getMatrix());
-	glUniformMatrix4fv(projectionMatrixLocation, 1, GL_FALSE, projectionMatrix.getMatrix());
-	glUniformMatrix4fv(viewMatrixLocation, 1, GL_FALSE, viewMatrix.getMatrix());
-	glUniform3f(cameraPos_location, camPos.x, camPos.y, camPos.z);
+	glUniformMatrix4fv(modelMatrixLocationTP, 1, GL_FALSE, modelMatrixTeapot.getMatrix());
+	glUniformMatrix4fv(projectionMatrixLocationTP, 1, GL_FALSE, projectionMatrix.getMatrix());
+	glUniformMatrix4fv(viewMatrixLocationTP, 1, GL_FALSE, viewMatrix.getMatrix());
+	glUniform3f(cameraPos_locationTP, camPos.x, camPos.y, camPos.z);
 
 	glBindVertexArray(VAOTP);
 	glDrawElements(GL_TRIANGLES, teapot.vertexCount, GL_UNSIGNED_SHORT, nullptr);
