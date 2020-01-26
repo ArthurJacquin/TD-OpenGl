@@ -10,5 +10,5 @@ void main(void)
 	float luminance = dot(texColor.rgb, luminanceWeight);
 	vec3 lumVector = vec3(luminance);
 
-	gl_FragColor = vec4(lumVector, 1.0);	
+	gl_FragColor = texColor;	
 }

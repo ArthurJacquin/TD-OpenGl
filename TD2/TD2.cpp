@@ -41,6 +41,10 @@ GLuint g_TextureObject;
 GLuint g_TextureObjectTeapot;
 GLuint texturesID[3];
 
+uint32_t program;
+uint32_t programTP;;
+
+
 //Buffers
 GLuint VAO;
 GLuint VAOTP;
@@ -80,27 +84,28 @@ int projectionMatrixLocation;
 int cameraPos_location;
 
 
-GLuint LoadTexture(const char* path, int index)
+GLuint LoadTexture(const char* path)
 {
 	// 1. chargement de la bitmap
+	GLuint texture;
 	int w, h, c;
 	uint8_t* data = stbi_load(path, &w, &h, &c, STBI_rgb_alpha);
 	// 2. creation du texture object OpenGL
-	glGenTextures(1, &texturesID[index]);
+	glGenTextures(1, &texture);
 	// 3. chargement et parametrage
 	// pour pouvoir travailler sur/avec la texture
 	// on doit d'abord la "bind" / attacher sur un identifiant
 	// en l'occurence GL_TEXTURE_2D
-	glBindTexture(GL_TEXTURE_2D, texturesID[index]);
+	glBindTexture(GL_TEXTURE_2D, texture);
 	// les 6 premiers params definissent le stockage de la texture en VRAM (memoire video)
 	// les 3 derniers specifient l'image source
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	// on remet la valeur par defaut (pas obligatoire mais preferable ici)
-	glBindTexture(GL_TEXTURE_2D, index);
+	//glBindTexture(GL_TEXTURE_2D, index);
 	// 4. liberation de la memoire
 	stbi_image_free(data);
-	return texturesID[index];
+	return texture;
 }
 
 void DestroyTexture(GLuint* textureID)
@@ -180,7 +185,7 @@ void InitBuffersSuzanne()
 {
 	GLuint VBO;
 	GLuint IBO;
-	uint32_t program = g_basicShader.GetProgram();
+	program = g_basicShader.GetProgram();
 
 	//Création VAO
 	glGenVertexArrays(1, &VAO);
@@ -211,9 +216,7 @@ void InitBuffersSuzanne()
 	glVertexAttribPointer(normals_location, 3, GL_FLOAT, false, sizeof(Vertex), (void*)offsetof(Vertex, normal.x));
 	glEnableVertexAttribArray(normals_location);
 
-	//Texture
-	int texture_location = glGetUniformLocation(program, "u_TextureSampler");
-	glUniform1i(texture_location, texturesID[1]);
+	g_TextureObject = LoadTexture("suzanne.jpg");
 
 	//Désactivation des buffers
 	glBindVertexArray(0);
@@ -225,7 +228,7 @@ void InitBuffersTeapot()
 {
 	GLuint IBOTP;
 	GLuint VBOTP;
-	uint32_t programTP = g_teapotShader.GetProgram();
+	programTP = g_teapotShader.GetProgram();
 
 	//Création VAO
 	glGenVertexArrays(1, &VAOTP);
@@ -256,9 +259,7 @@ void InitBuffersTeapot()
 	glVertexAttribPointer(normals_location, 3, GL_FLOAT, false, sizeof(Vertex), (void*)offsetof(Vertex, normal.x));
 	glEnableVertexAttribArray(normals_location);
 
-	//Texture
-	int texture_location = glGetUniformLocation(programTP, "u_TextureSampler");
-	glUniform1i(texture_location, texturesID[2]);
+	g_TextureObjectTeapot = LoadTexture("teapot.png");
 
 	//Désactivation des buffers
 	glBindVertexArray(0);
@@ -425,11 +426,6 @@ void Initialize()
 	loadModel("suzanne.obj", mesh);
 	loadModel("teapot.obj", teapot);
 
-	texturesID[1] = LoadTexture("suzanne.jpg", 1);
-	texturesID[2] = LoadTexture("teapot.png", 2);
-	glActiveTexture(GL_TEXTURE2);
-	glBindTexture(GL_TEXTURE_2D, texturesID[2]);
-
 	InitFBO();
 	InitBuffersSuzanne();
 	InitBuffersTeapot();
@@ -539,11 +535,14 @@ void Display(GLFWwindow* window)
 
 	//-----------------------------------------------------Suzanne model---------------------------------------------------------------------
 	glUseProgram(g_basicShader.GetProgram());
-
-	glActiveTexture(GL_TEXTURE1);
-	glBindTexture(GL_TEXTURE_2D, texturesID[1]);
-
 	SetUniform(g_basicShader);
+
+	//Texture
+	glActiveTexture(GL_TEXTURE0);
+	glEnable(GL_TEXTURE_2D);
+	int texture_location = glGetUniformLocation(program, "u_TextureSampler");
+	glUniform1i(texture_location, 0);
+	glBindTexture(GL_TEXTURE_2D, g_TextureObject);
 
 	//Time
 	currentTime = (float)glfwGetTime();
@@ -572,6 +571,13 @@ void Display(GLFWwindow* window)
 	glUseProgram(g_teapotShader.GetProgram());
 	SetUniform(g_teapotShader);
 
+	//Texture
+	glActiveTexture(GL_TEXTURE0);
+	glEnable(GL_TEXTURE_2D);
+	int TP_location = glGetUniformLocation(programTP, "u_TextureSampler");
+	glUniform1i(TP_location, 0);
+	glBindTexture(GL_TEXTURE_2D, g_TextureObjectTeapot);
+
 	Matrix4 modelMatrixTeapot;
 	modelMatrixTeapot = modelMatrixTeapot.Scale(1.f) * modelMatrixTeapot.Rotate(Vec3(-currentTime, 0.f, -currentTime)) * modelMatrixTeapot.Translate(0.f, 0.5f, 0.f);
 	
@@ -589,6 +595,13 @@ void Display(GLFWwindow* window)
 	glBindFramebuffer(GL_READ_FRAMEBUFFER, FBO);
 	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
 	glBlitFramebuffer(0, 0, width, height, 0, 0, width, height, GL_COLOR_BUFFER_BIT, GL_LINEAR);*/
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, 0);
+	glDisable(GL_TEXTURE_2D);
+
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, 0);
+	glDisable(GL_TEXTURE_2D);
 }
 
 int main(void)
