@@ -466,6 +466,24 @@ static void mouse_callback(GLFWwindow* window, double xpos, double ypos)
 	camPos = mat.Rotate(Vec3(yoffset, xoffset, 0.0f)) * mat.Translate(camPos.x, camPos.y, camPos.z) * Vec3(0.f, 0.f, 0.f);
 }
 
+void keyboard_button_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
+{
+	bool activePP = false;
+	uint32_t program2D = g_2DShader.GetProgram();
+	int boolLocation = glGetUniformLocation(program2D, "activePP");
+
+	if (key == GLFW_KEY_ENTER && action == GLFW_PRESS && activePP == false)
+	{
+		glUniform1i(boolLocation, 1);
+		activePP = true;
+	}
+	else if (key == GLFW_KEY_ENTER && action == GLFW_PRESS && activePP == true)
+	{
+		glUniform1i(boolLocation, 0);
+		activePP = false;
+	}
+}
+
 //Zoom
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset)
 {
@@ -484,6 +502,7 @@ void InitInputs() {
 
 	//Cursor Position callback
 	glfwSetCursorPosCallback(window, mouse_callback);
+	glfwSetKeyCallback(window, keyboard_button_callback);
 
 	//Scroll callback
 	glfwSetScrollCallback(window, scroll_callback);
