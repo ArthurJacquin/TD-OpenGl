@@ -86,7 +86,7 @@ GLuint LoadTexture(const char* path, int index)
 	int w, h, c;
 	uint8_t* data = stbi_load(path, &w, &h, &c, STBI_rgb_alpha);
 	// 2. creation du texture object OpenGL
-	glGenTextures(index, &texturesID[index]);
+	glGenTextures(1, &texturesID[index]);
 	// 3. chargement et parametrage
 	// pour pouvoir travailler sur/avec la texture
 	// on doit d'abord la "bind" / attacher sur un identifiant
@@ -97,7 +97,7 @@ GLuint LoadTexture(const char* path, int index)
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	// on remet la valeur par defaut (pas obligatoire mais preferable ici)
-	glBindTexture(GL_TEXTURE_2D, 0);
+	glBindTexture(GL_TEXTURE_2D, index);
 	// 4. liberation de la memoire
 	stbi_image_free(data);
 	return texturesID[index];
@@ -366,10 +366,6 @@ void Init2DRender()
 	glVertexAttribPointer(texcoords_location, 2, GL_FLOAT, false, sizeof(float) * 4, (void*)(sizeof(float) * 2));
 	glEnableVertexAttribArray(texcoords_location);
 
-	//Texture
-	//int texture_location = glGetUniformLocation(program2D, "u_TextureSampler");
-	//glUniform1i(texture_location, 0);
-
 	//Désactivation des buffers
 	glBindVertexArray(0);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
@@ -429,11 +425,11 @@ void Initialize()
 	loadModel("suzanne.obj", mesh);
 	loadModel("teapot.obj", teapot);
 	
-	g_TextureObject = LoadTexture("suzanne.jpg", 2);
+	texturesID[1] = LoadTexture("suzanne.jpg", 1);
 	glActiveTexture(GL_TEXTURE1);
 	glBindTexture(GL_TEXTURE_2D, texturesID[1]);
 
-	g_TextureObjectTeapot = LoadTexture("teapot.png", 1);
+	texturesID[2] = LoadTexture("teapot.png", 2);
 	glActiveTexture(GL_TEXTURE2);
 	glBindTexture(GL_TEXTURE_2D, texturesID[2]);
 
@@ -552,7 +548,7 @@ void Display(GLFWwindow* window)
 	currentTime = (float)glfwGetTime();
 	glUniform1f(timeLocation, currentTime);
 	
-	modelMatrix = modelMatrix.Scale(1.f) * modelMatrix.Rotate(Vec3(0.0f, currentTime, currentTime)) * modelMatrix.Translate(0.f, -0.7f, 0.f);
+	modelMatrix = modelMatrix.Scale(1.f) * modelMatrix.Rotate(Vec3(0.0f, currentTime, currentTime)) * modelMatrix.Translate(1.f, -1.7f, 0.f);
 
 	//Matrix uniforms
 	glUniformMatrix4fv(modelMatrixLocation, 1, GL_FALSE, modelMatrix.getMatrix());
@@ -576,7 +572,7 @@ void Display(GLFWwindow* window)
 	SetUniform(g_teapotShader);
 
 	Matrix4 modelMatrixTeapot;
-	modelMatrixTeapot = modelMatrixTeapot.Scale(1.f) * modelMatrixTeapot.Rotate(Vec3(0.f, 0.f, 0.0f)) * modelMatrixTeapot.Translate(0.f, 0.5f, 0.f);
+	modelMatrixTeapot = modelMatrixTeapot.Scale(1.f) * modelMatrixTeapot.Rotate(Vec3(-currentTime, 0.f, -currentTime)) * modelMatrixTeapot.Translate(0.f, 0.5f, 0.f);
 	
 	glUniformMatrix4fv(modelMatrixLocation, 1, GL_FALSE, modelMatrixTeapot.getMatrix());
 	glUniformMatrix4fv(projectionMatrixLocation, 1, GL_FALSE, projectionMatrix.getMatrix());
