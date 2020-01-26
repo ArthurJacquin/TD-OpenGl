@@ -424,11 +424,8 @@ void Initialize()
 	//Load OBJ
 	loadModel("suzanne.obj", mesh);
 	loadModel("teapot.obj", teapot);
-	
-	texturesID[1] = LoadTexture("suzanne.jpg", 1);
-	glActiveTexture(GL_TEXTURE1);
-	glBindTexture(GL_TEXTURE_2D, texturesID[1]);
 
+	texturesID[1] = LoadTexture("suzanne.jpg", 1);
 	texturesID[2] = LoadTexture("teapot.png", 2);
 	glActiveTexture(GL_TEXTURE2);
 	glBindTexture(GL_TEXTURE_2D, texturesID[2]);
@@ -542,6 +539,10 @@ void Display(GLFWwindow* window)
 
 	//-----------------------------------------------------Suzanne model---------------------------------------------------------------------
 	glUseProgram(g_basicShader.GetProgram());
+
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, texturesID[1]);
+
 	SetUniform(g_basicShader);
 
 	//Time
@@ -563,7 +564,7 @@ void Display(GLFWwindow* window)
 	glDrawElements(GL_TRIANGLES, mesh.vertexCount, GL_UNSIGNED_SHORT, nullptr);
 	*/
 	glBindVertexArray(VAO);
-	glDrawElements(GL_TRIANGLES, mesh.vertexCount, GL_UNSIGNED_SHORT, nullptr);
+	glDrawElements(GL_TRIANGLES, mesh.vertexCount, GL_UNSIGNED_SHORT, nullptr); 
 
 	//glBindVertexArray(0);
 
