@@ -569,7 +569,7 @@ void Display(GLFWwindow* window)
 	//Time
 	currentTime = (float)glfwGetTime();
 	
-	modelMatrix = modelMatrix.Scale(1.f) * modelMatrix.Rotate(Vec3(0.0f, 0.f, 0.0f)) * modelMatrix.Translate(0.f, 0.0f, 0.f);
+	modelMatrix = modelMatrix.Scale(1.f) * modelMatrix.Rotate(Vec3(0.0f, currentTime, currentTime)) * modelMatrix.Translate(1.f, -1.7f, 0.f);
 
 	//Matrix uniforms
 	glUniformMatrix4fv(modelMatrixLocation, 1, GL_FALSE, modelMatrix.getMatrix());
