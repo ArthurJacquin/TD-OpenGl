@@ -37,7 +37,7 @@ void main(void)
 	vec4 ambient = vec4(u_light.Ia * u_mat.Ka * u_light.color, 1.0f);
 
 	//Diffuse
-	vec4 diffuseColor = vec4(dot(v_normals, dirToLight) * u_light.Id * u_mat.Kd, 1.0f);
+	vec4 diffuseColor = vec4(max(dot(v_normals, dirToLight) * u_light.Id * u_mat.Kd, 0.0), 1.0f);
 	
 	//Speculaire
 	vec3 dirToCam = normalize(u_camPos - v_fragPos);

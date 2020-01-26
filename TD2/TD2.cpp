@@ -74,7 +74,8 @@ float pitch = 0;
 float yaw = 0;
 bool firstMouse = true;
 float FOV = 60;
-
+int b;
+bool activePP = false;
 
 int modelMatrixLocation;
 int viewMatrixLocation;
@@ -282,7 +283,7 @@ void SetUniform(GLShader &shader)
 
 	//-------------------------------------------------------Paramètre lumière------------------------------------------------
 	int lightPos_Ia = glGetUniformLocation(program, "u_light.Ia");
-	glUniform1f(lightPos_location, 1.0f);
+	glUniform1f(lightPos_Ia, 0.1f);
 	//ambient
 	int lightPos_Id = glGetUniformLocation(program, "u_light.Id");
 	glUniform3f(lightPos_Id, 1.0f, 1.0f, 1.0f);
@@ -469,20 +470,21 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos)
 
 void keyboard_button_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
 {
-	bool activePP = false;
 	uint32_t program2D = g_2DShader.GetProgram();
 	int boolLocation = glGetUniformLocation(program2D, "activePP");
 
 	if (key == GLFW_KEY_ENTER && action == GLFW_PRESS && activePP == false)
 	{
-		glUniform1i(boolLocation, 1);
+		b = 1;
 		activePP = true;
 	}
 	else if (key == GLFW_KEY_ENTER && action == GLFW_PRESS && activePP == true)
 	{
-		glUniform1i(boolLocation, 0);
+		b = 0;
 		activePP = false;
 	}
+
+	glUniform1i(boolLocation, b);
 }
 
 //Zoom
