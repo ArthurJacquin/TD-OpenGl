@@ -151,9 +151,6 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <Text Include="ReadMe.txt" />
-  </ItemGroup>
-  <ItemGroup>
     <ClInclude Include="..\libs\tinyobjloader\tiny_obj_loader.h" />
     <ClInclude Include="Material.h" />
     <ClInclude Include="Matrix4.h" />
@@ -179,6 +176,8 @@
     <None Include="basic.vs.glsl" />
     <None Include="PostProcess.fs.glsl" />
     <None Include="PostProcess.vs.glsl" />
+    <None Include="skyboxShader.fs.glsl" />
+    <None Include="skyboxShader.vs.glsl" />
     <None Include="teapotShader.fs.glsl" />
     <None Include="teapotShader.vs.glsl" />
   </ItemGroup>

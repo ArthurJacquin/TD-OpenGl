@@ -42,7 +42,7 @@ GLuint g_TextureObjectTeapot;
 GLuint texturesID[3];
 
 uint32_t program;
-uint32_t programTP;;
+uint32_t programTP;
 
 //Buffers
 GLuint VAO;
@@ -86,6 +86,15 @@ int modelMatrixLocationTP;
 int viewMatrixLocationTP;
 int projectionMatrixLocationTP;
 int cameraPos_locationTP;
+
+//Cubemap
+uint32_t cubeMapID;
+GLShader g_skyboxShader;
+GLuint skyboxVAO, skyboxVBO;
+
+Matrix4 modelMatrix;
+Matrix4 projectionMatrix;
+Matrix4 viewMatrix;
 
 
 GLuint LoadTexture(const char* path)
@@ -182,6 +191,118 @@ void loadModel(const string path, Mesh& meshes)
 
 		meshes.mat.shininess = materials[f].shininess;
 	}
+}
+
+//Cubemap
+uint32_t LoadCubemap(const char* pathes[6])
+{
+	unsigned int cubemapTexture;
+	glGenTextures(1, &cubemapTexture);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture);
+
+	int width, height, c;
+	for (int i = 0; i < 6; i++)
+	{
+		uint8_t* data = stbi_load(pathes[i], &width, &height, &c, STBI_rgb_alpha);
+		if(data)
+			glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+		stbi_image_free(data);
+	}
+
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+
+	return cubemapTexture;
+}
+
+void InitCubeMap()
+{
+	const char* pathes[6] = {
+		"envmaps/pisa_posx.jpg",
+		"envmaps/pisa_negx.jpg",
+		"envmaps/pisa_posy.jpg",
+		"envmaps/pisa_negy.jpg",
+		"envmaps/pisa_posz.jpg",
+		"envmaps/pisa_negz.jpg"
+	};
+
+	cubeMapID = LoadCubemap(pathes);
+}
+
+void InitSkybox()
+{
+	float skyboxVertices[] = {
+		// positions          
+		-1.0f,  1.0f, -1.0f,
+		-1.0f, -1.0f, -1.0f,
+		 1.0f, -1.0f, -1.0f,
+		 1.0f, -1.0f, -1.0f,
+		 1.0f,  1.0f, -1.0f,
+		-1.0f,  1.0f, -1.0f,
+
+		-1.0f, -1.0f,  1.0f,
+		-1.0f, -1.0f, -1.0f,
+		-1.0f,  1.0f, -1.0f,
+		-1.0f,  1.0f, -1.0f,
+		-1.0f,  1.0f,  1.0f,
+		-1.0f, -1.0f,  1.0f,
+
+		 1.0f, -1.0f, -1.0f,
+		 1.0f, -1.0f,  1.0f,
+		 1.0f,  1.0f,  1.0f,
+		 1.0f,  1.0f,  1.0f,
+		 1.0f,  1.0f, -1.0f,
+		 1.0f, -1.0f, -1.0f,
+
+		-1.0f, -1.0f,  1.0f,
+		-1.0f,  1.0f,  1.0f,
+		 1.0f,  1.0f,  1.0f,
+		 1.0f,  1.0f,  1.0f,
+		 1.0f, -1.0f,  1.0f,
+		-1.0f, -1.0f,  1.0f,
+
+		-1.0f,  1.0f, -1.0f,
+		 1.0f,  1.0f, -1.0f,
+		 1.0f,  1.0f,  1.0f,
+		 1.0f,  1.0f,  1.0f,
+		-1.0f,  1.0f,  1.0f,
+		-1.0f,  1.0f, -1.0f,
+
+		-1.0f, -1.0f, -1.0f,
+		-1.0f, -1.0f,  1.0f,
+		 1.0f, -1.0f, -1.0f,
+		 1.0f, -1.0f, -1.0f,
+		-1.0f, -1.0f,  1.0f,
+		 1.0f, -1.0f,  1.0f
+	};
+
+	glGenVertexArrays(1, &skyboxVAO);
+	glBindVertexArray(skyboxVAO);
+
+	glGenBuffers(1, &skyboxVBO);
+	glBindBuffer(GL_ARRAY_BUFFER, skyboxVBO);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(skyboxVertices), &skyboxVertices, GL_STATIC_DRAW);
+
+	program = g_skyboxShader.GetProgram();
+
+	//Position
+	int loc_position = glGetAttribLocation(program, "a_position");
+	glVertexAttribPointer(loc_position, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), nullptr);
+	glEnableVertexAttribArray(loc_position);
+	//UV
+	int texcoords_location = glGetAttribLocation(program, "a_texcoords");
+	glVertexAttribPointer(texcoords_location, 3, GL_FLOAT, false, sizeof(Vertex), (void*)offsetof(Vertex, texCoord.x));
+	glEnableVertexAttribArray(texcoords_location);
+
+	glEnableVertexAttribArray(0);
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+
+	//Désactivation des buffers
+	glBindVertexArray(0);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
 //Init VAO, VBO and IBO
@@ -421,6 +542,10 @@ void Initialize()
 	g_teapotShader.LoadFragmentShader("teapotShader.fs.glsl");
 	g_teapotShader.Create();
 
+	g_skyboxShader.LoadVertexShader("skyboxShader.vs.glsl");
+	g_skyboxShader.LoadFragmentShader("skyboxShader.fs.glsl");
+	g_skyboxShader.Create();
+
 	//Link shaders 2D
 	g_2DShader.LoadVertexShader("postprocess.vs.glsl");
 	g_2DShader.LoadFragmentShader("postprocess.fs.glsl");
@@ -434,6 +559,8 @@ void Initialize()
 	InitBuffersSuzanne();
 	InitBuffersTeapot();
 	Init2DRender();
+	InitCubeMap();
+	InitSkybox();
 
 	//Uniforms
 	modelMatrixLocation = glGetUniformLocation(g_basicShader.GetProgram(), "u_modelMatrix");
@@ -516,12 +643,14 @@ void Shutdown()
 	DestroyTexture(&texturesID[0]);
 	DestroyTexture(&texturesID[1]);
 	DestroyTexture(&texturesID[2]);
+	glDeleteTextures(1, &cubeMapID);
 
 	glDeleteFramebuffers(1, &FBO);
 
 	g_basicShader.Destroy();
 	g_teapotShader.Destroy();
 	g_2DShader.Destroy();
+	g_skyboxShader.Destroy();
 }
 
 void Display(GLFWwindow* window)
@@ -546,11 +675,6 @@ void Display(GLFWwindow* window)
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	//----------------------------------------Matrix---------------------------------------------------
-
-	Matrix4 modelMatrix;
-	Matrix4 projectionMatrix;
-	Matrix4 viewMatrix;
-
 	//projectionMatrix = projectionMatrix.Ortho(-windowWidth/2, windowWidth/2, -windowHeight/2, windowHeight/2, -1, 1);
 	projectionMatrix = projectionMatrix.Perspective(FOV, windowWidth / (float)windowHeight, 0.0001f, 100.f);
 	viewMatrix = viewMatrix.LookAt(camPos, Vec3(0.0f, 0.0f, 0.0f), Vec3(0.0f, 1.0f, 0.0f));
@@ -610,6 +734,21 @@ void Display(GLFWwindow* window)
 	glBindFramebuffer(GL_READ_FRAMEBUFFER, FBO);
 	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
 	glBlitFramebuffer(0, 0, width, height, 0, 0, width, height, GL_COLOR_BUFFER_BIT, GL_LINEAR);*/
+	//---------------------------------------------------Sky model---------------------------------------------------------------------------
+	glDepthFunc(GL_LEQUAL);
+	glUseProgram(g_skyboxShader.GetProgram());
+	SetUniform(g_skyboxShader);
+	glBindVertexArray(skyboxVAO);
+
+	glActiveTexture(GL_TEXTURE0);
+	int32_t skyTextureLocation = glGetUniformLocation(program, "u_SkyTexture");
+	glUniform1i(skyTextureLocation, 1);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, cubeMapID);
+
+	glDrawArrays(GL_TRIANGLES, 0, 36);
+	glBindVertexArray(0);
+	glDepthFunc(GL_LESS);
+
 	glActiveTexture(GL_TEXTURE1);
 	glBindTexture(GL_TEXTURE_2D, 0);
 	glDisable(GL_TEXTURE_2D);
@@ -638,7 +777,6 @@ int main(void)
 
 	// toutes nos initialisations vont ici
 	Initialize();
-
 	InitInputs();
 
 	/* Loop until the user closes the window */
