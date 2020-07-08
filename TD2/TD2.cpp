@@ -204,8 +204,15 @@ uint32_t LoadCubemap(const char* pathes[6])
 	for (int i = 0; i < 6; i++)
 	{
 		uint8_t* data = stbi_load(pathes[i], &width, &height, &c, STBI_rgb_alpha);
-		if(data)
+		if (data)
+		{
+			std::cout << "Cubemap texture load at path: " << pathes[i] << std::endl;
 			glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+		}
+		else
+		{
+			std::cout << "Cubemap texture failed to load at path: " << GL_TEXTURE_CUBE_MAP_POSITIVE_X + i << std::endl;
+		}
 		stbi_image_free(data);
 	}
 
@@ -291,13 +298,12 @@ void InitSkybox()
 	int loc_position = glGetAttribLocation(program, "a_position");
 	glVertexAttribPointer(loc_position, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), nullptr);
 	glEnableVertexAttribArray(loc_position);
-	//UV
-	int texcoords_location = glGetAttribLocation(program, "a_texcoords");
-	glVertexAttribPointer(texcoords_location, 3, GL_FLOAT, false, sizeof(Vertex), (void*)offsetof(Vertex, texCoord.x));
-	glEnableVertexAttribArray(texcoords_location);
 
 	glEnableVertexAttribArray(0);
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+
+	viewMatrixLocationTP = glGetUniformLocation(g_skyboxShader.GetProgram(), "u_viewMatrix");
+	projectionMatrixLocationTP = glGetUniformLocation(g_skyboxShader.GetProgram(), "u_projectionMatrix");
 
 	//Désactivation des buffers
 	glBindVertexArray(0);
@@ -572,6 +578,7 @@ void Initialize()
 	viewMatrixLocationTP = glGetUniformLocation(g_teapotShader.GetProgram(), "u_viewMatrix");
 	projectionMatrixLocationTP = glGetUniformLocation(g_teapotShader.GetProgram(), "u_projectionMatrix");
 	cameraPos_locationTP = glGetUniformLocation(g_teapotShader.GetProgram(), "u_camPos");
+
 }
 
 //Update camera pos
@@ -693,7 +700,7 @@ void Display(GLFWwindow* window)
 	//Time
 	currentTime = (float)glfwGetTime();
 	
-	modelMatrix = modelMatrix.Scale(1.f) * modelMatrix.Rotate(Vec3(0.0f, currentTime, currentTime)) * modelMatrix.Translate(1.f, -1.7f, 0.f);
+	modelMatrix = modelMatrix.Scale(1.f) * modelMatrix.Rotate(Vec3(0.0f, currentTime, currentTime)) * modelMatrix.Translate(1.5f, -2.f, 0.f);
 
 	//Matrix uniforms
 	glUniformMatrix4fv(modelMatrixLocation, 1, GL_FALSE, modelMatrix.getMatrix());
@@ -718,7 +725,7 @@ void Display(GLFWwindow* window)
 	glBindTexture(GL_TEXTURE_2D, g_TextureObjectTeapot);
 
 	Matrix4 modelMatrixTeapot;
-	modelMatrixTeapot = modelMatrixTeapot.Scale(1.f) * modelMatrixTeapot.Rotate(Vec3(-currentTime, 0.f, -currentTime)) * modelMatrixTeapot.Translate(0.f, 0.5f, 0.f);
+	modelMatrixTeapot = modelMatrixTeapot.Scale(1.f) * modelMatrixTeapot.Rotate(Vec3(0.f, -currentTime, 0.f)) * modelMatrixTeapot.Translate(0.f, 0.f, 0.f);
 	
 	glUniformMatrix4fv(modelMatrixLocationTP, 1, GL_FALSE, modelMatrixTeapot.getMatrix());
 	glUniformMatrix4fv(projectionMatrixLocationTP, 1, GL_FALSE, projectionMatrix.getMatrix());
@@ -738,13 +745,15 @@ void Display(GLFWwindow* window)
 	glDepthFunc(GL_LEQUAL);
 	glUseProgram(g_skyboxShader.GetProgram());
 	SetUniform(g_skyboxShader);
-	glBindVertexArray(skyboxVAO);
 
-	glActiveTexture(GL_TEXTURE0);
+	glActiveTexture(GL_TEXTURE1);
 	int32_t skyTextureLocation = glGetUniformLocation(program, "u_SkyTexture");
+	glUniformMatrix4fv(projectionMatrixLocationTP, 1, GL_FALSE, projectionMatrix.getMatrix());
+	glUniformMatrix4fv(viewMatrixLocationTP, 1, GL_FALSE, viewMatrix.getMatrix());
 	glUniform1i(skyTextureLocation, 1);
 	glBindTexture(GL_TEXTURE_CUBE_MAP, cubeMapID);
 
+	glBindVertexArray(skyboxVAO);
 	glDrawArrays(GL_TRIANGLES, 0, 36);
 	glBindVertexArray(0);
 	glDepthFunc(GL_LESS);

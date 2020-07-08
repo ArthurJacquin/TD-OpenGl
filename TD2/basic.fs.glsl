@@ -24,6 +24,7 @@ uniform Light u_light;
 uniform Material u_mat;
 uniform sampler2D u_TextureSampler;
 uniform vec3 u_camPos;
+uniform samplerCube u_SkyTexture;
 
 void main(void)
 {
@@ -45,5 +46,7 @@ void main(void)
 	float spec = max(pow(dot(dirToCam, H), u_mat.shininess), 0.0);
 	vec4 specularColor = vec4(spec * u_light.Is * u_mat.Ks, 1.0f);
 
-	gl_FragColor = (ambient + diffuseColor + specularColor) * fragColor;	
+	vec3 I = normalize(v_fragPos - u_camPos);
+    vec3 R = reflect(I, normalize(v_normals));
+	gl_FragColor = vec4(texture(u_SkyTexture, R).rgb, 1.0);	
 }
