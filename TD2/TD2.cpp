@@ -46,6 +46,7 @@ uint32_t programTP;
 
 //Buffers
 GLuint VAO;
+GLuint PVAO;
 GLuint VAOTP;
 GLuint FBO;
 
@@ -59,6 +60,7 @@ GLuint colorBufferTexture;
 
 Mesh mesh;
 Mesh teapot;
+Mesh plane;
 
 float currentTime;
 
@@ -67,7 +69,7 @@ int windowWidth = 800;
 int windowHeight = 600;
 
 //Camera position
-Vec3 camPos(0.f, 0.f, 5.f);
+Vec3 camPos(0.f, 0.f, 8.f);
 float lastCamX = windowWidth / 2;
 float lastCamY = windowHeight / 2;
 float pitch = 0;
@@ -312,6 +314,47 @@ void InitSkybox()
 }
 
 //Init VAO, VBO and IBO
+void InitBufferPlane()
+{
+	GLuint PVBO;
+	GLuint PIBO;
+	program = g_basicShader.GetProgram();
+
+	//Création VAO
+	glGenVertexArrays(1, &PVAO);
+	glBindVertexArray(PVAO);
+
+	//Création VBO
+	glGenBuffers(1, &PVBO);
+	glBindBuffer(GL_ARRAY_BUFFER, PVBO);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(Vertex) * plane.vertexCount, &plane.vertices[0], GL_STATIC_DRAW);
+
+	//Création IBO
+	glGenBuffers(1, &PIBO);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, PIBO);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned short) * plane.indices.size() - 1, &plane.indices[0], GL_STATIC_DRAW);
+
+	//Position
+	int loc_position = glGetAttribLocation(program, "a_position");
+	glVertexAttribPointer(loc_position, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), nullptr);
+	glEnableVertexAttribArray(loc_position);
+
+	//UV
+	int texcoords_location = glGetAttribLocation(program, "a_texcoords");
+	glVertexAttribPointer(texcoords_location, 3, GL_FLOAT, false, sizeof(Vertex), (void*)offsetof(Vertex, texCoord.x));
+	glEnableVertexAttribArray(texcoords_location);
+
+	//Normals
+	int normals_location = glGetAttribLocation(program, "a_normals");
+	glVertexAttribPointer(normals_location, 3, GL_FLOAT, false, sizeof(Vertex), (void*)offsetof(Vertex, normal.x));
+	glEnableVertexAttribArray(normals_location);
+
+	//Désactivation des buffers
+	glBindVertexArray(0);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+}
+
 void InitBuffersSuzanne() 
 {
 	GLuint VBO;
@@ -527,6 +570,12 @@ void Render2D()
 
 }
 
+//Init Shadow buffer
+void InitFBOLight()
+{
+
+}
+
 void Initialize()
 {
 	GLenum error = glewInit();
@@ -560,10 +609,13 @@ void Initialize()
 	//Load OBJ
 	loadModel("suzanne.obj", mesh);
 	loadModel("teapot.obj", teapot);
+	loadModel("plane.obj", plane);
 
 	InitFBO();
 	InitBuffersSuzanne();
 	InitBuffersTeapot();
+	InitBufferPlane();
+
 	Init2DRender();
 	InitCubeMap();
 	InitSkybox();
@@ -700,7 +752,7 @@ void Display(GLFWwindow* window)
 	//Time
 	currentTime = (float)glfwGetTime();
 	
-	modelMatrix = modelMatrix.Scale(1.f) * modelMatrix.Rotate(Vec3(0.0f, currentTime, currentTime)) * modelMatrix.Translate(1.5f, -2.f, 0.f);
+	modelMatrix = modelMatrix.Scale(1.f) * modelMatrix.Rotate(Vec3(0.0f, -currentTime, 0.f)) * modelMatrix.Translate(1.5f, 2.f, 0.f) * modelMatrix.Rotate(Vec3(0.0f, -currentTime, 0.f));
 
 	//Matrix uniforms
 	glUniformMatrix4fv(modelMatrixLocation, 1, GL_FALSE, modelMatrix.getMatrix());
@@ -725,7 +777,7 @@ void Display(GLFWwindow* window)
 	glBindTexture(GL_TEXTURE_2D, g_TextureObjectTeapot);
 
 	Matrix4 modelMatrixTeapot;
-	modelMatrixTeapot = modelMatrixTeapot.Scale(1.f) * modelMatrixTeapot.Rotate(Vec3(0.f, -currentTime, 0.f)) * modelMatrixTeapot.Translate(0.f, 0.f, 0.f);
+	modelMatrixTeapot = modelMatrixTeapot.Scale(1.f) * modelMatrixTeapot.Rotate(Vec3(0.f, 0.f, 0.f)) * modelMatrixTeapot.Translate(0.f, 0.f, 0.f);
 	
 	glUniformMatrix4fv(modelMatrixLocationTP, 1, GL_FALSE, modelMatrixTeapot.getMatrix());
 	glUniformMatrix4fv(projectionMatrixLocationTP, 1, GL_FALSE, projectionMatrix.getMatrix());
@@ -736,11 +788,29 @@ void Display(GLFWwindow* window)
 	glDrawElements(GL_TRIANGLES, teapot.vertexCount, GL_UNSIGNED_SHORT, nullptr);
 	
 	glBindVertexArray(0);
-	
-	/*
-	glBindFramebuffer(GL_READ_FRAMEBUFFER, FBO);
-	glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
-	glBlitFramebuffer(0, 0, width, height, 0, 0, width, height, GL_COLOR_BUFFER_BIT, GL_LINEAR);*/
+	//---------------------------------------------------Plane model---------------------------------------------------------------------------
+	glUseProgram(g_teapotShader.GetProgram());
+	SetUniform(g_teapotShader);
+
+	//Texture
+	glActiveTexture(GL_TEXTURE0);
+	glEnable(GL_TEXTURE_2D);
+	texture_location = glGetUniformLocation(program, "u_TextureSampler");
+	glUniform1i(texture_location, 0);
+	glBindTexture(GL_TEXTURE_2D, g_TextureObject);
+
+	modelMatrix = modelMatrix.Scale(1.f) * modelMatrix.Rotate(Vec3(0.0f, 0.0f, 0.0f)) * modelMatrix.Translate(0.f, 0.f, 0.f);
+
+	//Matrix uniforms
+	glUniformMatrix4fv(modelMatrixLocation, 1, GL_FALSE, modelMatrix.getMatrix());
+	glUniformMatrix4fv(projectionMatrixLocation, 1, GL_FALSE, projectionMatrix.getMatrix());
+	glUniformMatrix4fv(viewMatrixLocation, 1, GL_FALSE, viewMatrix.getMatrix());
+	glUniform3f(cameraPos_location, camPos.x, camPos.y, camPos.z);
+
+	//Active VAO -> Render -> reset VAO
+	glBindVertexArray(PVAO);
+	glDrawElements(GL_TRIANGLES, plane.vertexCount, GL_UNSIGNED_SHORT, nullptr);
+	glBindVertexArray(0);
 	//---------------------------------------------------Sky model---------------------------------------------------------------------------
 	glDepthFunc(GL_LEQUAL);
 	glUseProgram(g_skyboxShader.GetProgram());
