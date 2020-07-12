@@ -1,7 +1,4 @@
-//
-//
-//
-
+#pragma region Includes
 
 #define GLEW_STATIC
 #include <GL/glew.h>
@@ -33,6 +30,10 @@
 #define PI 3.14159265359
 
 using namespace std;
+
+#pragma endregion
+
+#pragma region Variables
 
 // variables globales (dans le cadre de cet exemple, evitez les globales si possible)
 GLShader g_basicShader;
@@ -79,11 +80,14 @@ float FOV = 60;
 int b;
 bool activePP = false;
 
+const int shadowmap_resolution = 1024;
 int modelMatrixLocation;
 int viewMatrixLocation;
 int projectionMatrixLocation;
 int cameraPos_location;
-int depthModelMatrixLocation;
+int depthMVPMatrixLocation;
+int shadowMapLocation;
+int texture_location;
 
 int modelMatrixLocationTP;
 int viewMatrixLocationTP;
@@ -99,12 +103,73 @@ Matrix4 modelMatrix;
 Matrix4 projectionMatrix;
 Matrix4 viewMatrix;
 
-Matrix4 modelMatrixLight;
+Matrix4 depthMVP;
 Matrix4 projectionMatrixLight;
 Matrix4 viewMatrixLight;
-Vec3 lightPosition = Vec3(0.f, 5.0f, -5.0f);
+Vec3 lightPosition = Vec3(0.5f, 2.0f, 2.0f);
 GLuint shadowmapTexture;
 GLuint shadowmapFBO;
+
+#pragma endregion
+
+void DestroyTexture(GLuint* textureID)
+{
+	glDeleteTextures(1, textureID);
+	textureID = 0;
+}
+
+void SetUniform(GLShader &shader)
+{
+	uint32_t program = shader.GetProgram();
+
+	//------------------------------------------------- Position de la lumiere-----------------------------------------------
+	int lightPos_location = glGetUniformLocation(program, "u_light.pos");
+	glUniform3f(lightPos_location, lightPosition.x, lightPosition.y, lightPosition.z);
+	int lightColor_location = glGetUniformLocation(program, "u_light.color");
+	glUniform3f(lightColor_location, 1.0f, 1.0f, 1.0f);
+
+	//-------------------------------------------------------Paramètre lumière------------------------------------------------
+	int lightPos_Ia = glGetUniformLocation(program, "u_light.Ia");
+	glUniform1f(lightPos_Ia, 0.1f);
+	//ambient
+	int lightPos_Id = glGetUniformLocation(program, "u_light.Id");
+	glUniform3f(lightPos_Id, 1.0f, 1.0f, 1.0f);
+	//specular
+	int lightPos_Is = glGetUniformLocation(program, "u_light.Is");
+	glUniform3f(lightPos_Is, 1.0f, 1.0f, 1.0f);
+
+	// -------------------------------------------------------Materiau--------------------------------------------------------
+	//Ambient
+	int matKa_location = glGetUniformLocation(program, "u_mat.Ka");
+	glUniform3f(matKa_location, mesh.mat.Ka.x, mesh.mat.Ka.y, mesh.mat.Ka.z);
+	//Diffuse
+	int matKd_location = glGetUniformLocation(program, "u_mat.Kd");
+	glUniform3f(matKd_location, mesh.mat.Kd.x, mesh.mat.Kd.y, mesh.mat.Kd.z);
+	//Spéculaire
+	int matKs_location = glGetUniformLocation(program, "u_mat.Ks");
+	glUniform3f(matKs_location, mesh.mat.Ks.x, mesh.mat.Ks.y, mesh.mat.Ks.z);
+	//Reflection
+	int shininessPos_location = glGetUniformLocation(program, "u_mat.shininess");
+	glUniform1i(shininessPos_location, mesh.mat.shininess);
+
+}
+
+void Shutdown()
+{
+	DestroyTexture(&texturesID[0]);
+	DestroyTexture(&texturesID[1]);
+	DestroyTexture(&texturesID[2]);
+	glDeleteTextures(1, &cubeMapID);
+
+	glDeleteFramebuffers(1, &FBO);
+
+	g_basicShader.Destroy();
+	g_teapotShader.Destroy();
+	g_2DShader.Destroy();
+	g_skyboxShader.Destroy();
+}
+
+#pragma region Load_Functions
 
 GLuint LoadTexture(const char* path)
 {
@@ -128,12 +193,6 @@ GLuint LoadTexture(const char* path)
 	// 4. liberation de la memoire
 	stbi_image_free(data);
 	return texture;
-}
-
-void DestroyTexture(GLuint* textureID)
-{
-	glDeleteTextures(1, textureID);
-	textureID = 0;
 }
 
 void loadModel(const string path, Mesh& meshes)
@@ -232,6 +291,10 @@ uint32_t LoadCubemap(const char* pathes[6])
 
 	return cubemapTexture;
 }
+
+#pragma endregion
+
+#pragma region Init_Functions
 
 void InitCubeMap()
 {
@@ -448,42 +511,6 @@ void InitBuffersTeapot()
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
-void SetUniform(GLShader &shader)
-{
-	uint32_t program = shader.GetProgram();
-
-	//------------------------------------------------- Position de la lumiere-----------------------------------------------
-	int lightPos_location = glGetUniformLocation(program, "u_light.pos");
-	glUniform3f(lightPos_location, lightPosition.x, lightPosition.y, lightPosition.z);
-	int lightColor_location = glGetUniformLocation(program, "u_light.color");
-	glUniform3f(lightColor_location, 1.0f, 1.0f, 1.0f);
-
-	//-------------------------------------------------------Paramètre lumière------------------------------------------------
-	int lightPos_Ia = glGetUniformLocation(program, "u_light.Ia");
-	glUniform1f(lightPos_Ia, 0.1f);
-	//ambient
-	int lightPos_Id = glGetUniformLocation(program, "u_light.Id");
-	glUniform3f(lightPos_Id, 1.0f, 1.0f, 1.0f);
-	//specular
-	int lightPos_Is = glGetUniformLocation(program, "u_light.Is");
-	glUniform3f(lightPos_Is, 1.0f, 1.0f, 1.0f);
-
-	// -------------------------------------------------------Materiau--------------------------------------------------------
-	//Ambient
-	int matKa_location = glGetUniformLocation(program, "u_mat.Ka");
-	glUniform3f(matKa_location, mesh.mat.Ka.x, mesh.mat.Ka.y, mesh.mat.Ka.z);
-	//Diffuse
-	int matKd_location = glGetUniformLocation(program, "u_mat.Kd");
-	glUniform3f(matKd_location, mesh.mat.Kd.x, mesh.mat.Kd.y, mesh.mat.Kd.z);
-	//Spéculaire
-	int matKs_location = glGetUniformLocation(program, "u_mat.Ks");
-	glUniform3f(matKs_location, mesh.mat.Ks.x, mesh.mat.Ks.y, mesh.mat.Ks.z);
-	//Reflection
-	int shininessPos_location = glGetUniformLocation(program, "u_mat.shininess");
-	glUniform1i(shininessPos_location, mesh.mat.shininess);
-
-}
-
 //Init FBO
 void InitFBO()
 {
@@ -554,74 +581,36 @@ void Init2DRender()
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
-void Render2D()
-{
-	int width, height;
-	glfwGetWindowSize(window, &width, &height);
-
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-	glViewport(0, 0, width, height);
-	glClearColor(0.5f, 0.5f, 0.5f, 1.f);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	glDisable(GL_CULL_FACE);
-	glDisable(GL_DEPTH_TEST);
-	glDepthMask(GL_FALSE);
-
-	glUseProgram(g_2DShader.GetProgram());
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, texturesID[0]);
-	glBindVertexArray(VAO2D);
-
-	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-	//glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-}
-
 //Init Shadow buffer
 void InitFBOLight()
 {
-	unsigned int depthMapFBO;
-	glGenFramebuffers(1, &depthMapFBO);
-	const int shadowmap_resolution = 1024;
-	GLenum shadowmap_precision = GL_DEPTH_COMPONENT24; 
-	GLenum shadowmap_type =GL_UNSIGNED_INT;
+	GLuint shadowmapTexture;
+	GLuint shadowmapFBO;
+	GLenum shadowmap_precision = GL_DEPTH_COMPONENT24; // 32, 24 ou 16
+	GLenum shadowmap_type = GL_UNSIGNED_INT; //GL_UNSIGNED_INT ou _FLOAT
 
-	glGenTextures( 4, &shadowmapTexture );
-	glBindTexture( GL_TEXTURE_2D, shadowmapTexture );
+	glGenTextures(1, &shadowmapTexture);
+	glBindTexture(GL_TEXTURE_2D, shadowmapTexture);
 	glTexImage2D(GL_TEXTURE_2D, 0, shadowmap_precision, shadowmap_resolution, shadowmap_resolution, 0, GL_DEPTH_COMPONENT, shadowmap_type, 0);
-
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE); 
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);
-
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-}
-
-void RenderLightBuffer()
-{
-
-	glActiveTexture(GL_TEXTURE4);
-	glEnable(GL_TEXTURE_2D);
-	int TP_location = glGetUniformLocation(programTP, "u_ShadowMap");
-	glUniform1i(TP_location, 0);
-	glBindTexture(GL_TEXTURE_2D, shadowmapTexture);
-
-	projectionMatrixLight = projectionMatrixLight.Ortho(-10, 10, 10, -10, 1.0, 7.5);
-	viewMatrixLight = viewMatrixLight.LookAt(lightPosition, Vec3(0, 0, 0), Vec3(0, 1, 0));
-	modelMatrixLight = projectionMatrixLight * viewMatrixLight;
-	Matrix4 biasMatrix = biasMatrix.biasMatrix();
-	modelMatrixLight = biasMatrix * modelMatrixLight;
-	glUniformMatrix4fv(depthModelMatrixLocation, 1, GL_FALSE, modelMatrixLight.getMatrix());
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_MODE, GL_COMPARE_REF_TO_TEXTURE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_COMPARE_FUNC, GL_LEQUAL);
 
 	glGenFramebuffers(1, &shadowmapFBO);
 	glBindFramebuffer(GL_FRAMEBUFFER, shadowmapFBO);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, shadowmapTexture, 0);
 
-	glDrawBuffer(GL_NONE);
-	glReadBuffer(GL_NONE);
+	glDrawBuffer(GL_NONE); // tres important, autrement FBO non complet!
+	glReadBuffer(GL_NONE); // optionnellement
+
+	//Check FBO
+	assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
+
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glBindTexture(GL_TEXTURE_2D, 0);
 }
 
 void Initialize()
@@ -682,10 +671,205 @@ void Initialize()
 	cameraPos_locationTP = glGetUniformLocation(g_teapotShader.GetProgram(), "u_camPos");
 
 	//Uniform Light
-	depthModelMatrixLocation = glGetUniformLocation(g_teapotShader.GetProgram(), "u_modelMatrixLight");
+	depthMVPMatrixLocation = glGetUniformLocation(g_teapotShader.GetProgram(), "u_modelMatrixLight");
+	shadowMapLocation = glGetUniformLocation(g_teapotShader.GetProgram(), "u_ShadowMap");
 }
 
-//Update camera pos
+#pragma endregion
+
+#pragma region Render_Functions
+
+void RenderSuzanne()
+{
+	glUseProgram(g_basicShader.GetProgram());
+	SetUniform(g_basicShader);
+
+	//Texture
+	glActiveTexture(GL_TEXTURE0);
+	glEnable(GL_TEXTURE_2D);
+	int texture_location = glGetUniformLocation(program, "u_TextureSampler");
+	glUniform1i(texture_location, 0);
+	glBindTexture(GL_TEXTURE_2D, g_TextureObject);
+
+	//Time
+	currentTime = (float)glfwGetTime();
+
+	modelMatrix = modelMatrix.Scale(1.f) * modelMatrix.Rotate(Vec3(0.0f, -currentTime, 0.f)) * modelMatrix.Translate(1.5f, 2.f, 0.f) * modelMatrix.Rotate(Vec3(0.0f, -currentTime, 0.f));
+
+	//Matrix uniforms
+	glUniformMatrix4fv(modelMatrixLocation, 1, GL_FALSE, modelMatrix.getMatrix());
+	glUniformMatrix4fv(projectionMatrixLocation, 1, GL_FALSE, projectionMatrix.getMatrix());
+	glUniformMatrix4fv(viewMatrixLocation, 1, GL_FALSE, viewMatrix.getMatrix());
+	glUniform3f(cameraPos_location, camPos.x, camPos.y, camPos.z);
+
+	//Active VAO -> Render -> reset VAO
+	glBindVertexArray(VAO);
+	glDrawElements(GL_TRIANGLES, mesh.vertexCount, GL_UNSIGNED_SHORT, nullptr);
+	glBindVertexArray(0);
+}
+
+void RenderTeapot()
+{
+	glUseProgram(g_teapotShader.GetProgram());
+	SetUniform(g_teapotShader);
+
+	//Texture
+	glActiveTexture(GL_TEXTURE0);
+	glEnable(GL_TEXTURE_2D);
+	int TP_location = glGetUniformLocation(programTP, "u_TextureSampler");
+	glUniform1i(TP_location, 0);
+	glBindTexture(GL_TEXTURE_2D, g_TextureObjectTeapot);
+
+	Matrix4 modelMatrixTeapot;
+	modelMatrixTeapot = modelMatrixTeapot.Scale(1.f) * modelMatrixTeapot.Rotate(Vec3(0.f, 0.f, 0.f)) * modelMatrixTeapot.Translate(0.f, 0.f, 0.f);
+
+	glUniformMatrix4fv(modelMatrixLocationTP, 1, GL_FALSE, modelMatrixTeapot.getMatrix());
+	glUniformMatrix4fv(projectionMatrixLocationTP, 1, GL_FALSE, projectionMatrix.getMatrix());
+	glUniformMatrix4fv(viewMatrixLocationTP, 1, GL_FALSE, viewMatrix.getMatrix());
+	glUniform3f(cameraPos_locationTP, camPos.x, camPos.y, camPos.z);
+
+	glBindVertexArray(VAOTP);
+	glDrawElements(GL_TRIANGLES, teapot.vertexCount, GL_UNSIGNED_SHORT, nullptr);
+
+	glBindVertexArray(0);
+}
+
+void RenderPlane()
+{
+	glUseProgram(g_teapotShader.GetProgram());
+	SetUniform(g_teapotShader);
+
+	//Texture
+	glActiveTexture(GL_TEXTURE0);
+	glEnable(GL_TEXTURE_2D);
+	texture_location = glGetUniformLocation(program, "u_TextureSampler");
+	glUniform1i(texture_location, 0);
+	glBindTexture(GL_TEXTURE_2D, g_TextureObject);
+
+	modelMatrix = modelMatrix.Scale(1.f) * modelMatrix.Rotate(Vec3(0.0f, 0.0f, 0.0f)) * modelMatrix.Translate(0.f, 0.f, 0.f);
+
+	//Matrix uniforms
+	glUniformMatrix4fv(modelMatrixLocation, 1, GL_FALSE, modelMatrix.getMatrix());
+	glUniformMatrix4fv(projectionMatrixLocation, 1, GL_FALSE, projectionMatrix.getMatrix());
+	glUniformMatrix4fv(viewMatrixLocation, 1, GL_FALSE, viewMatrix.getMatrix());
+	glUniform3f(cameraPos_location, camPos.x, camPos.y, camPos.z);
+
+	//Active VAO -> Render -> reset VAO
+	glBindVertexArray(PVAO);
+	glDrawElements(GL_TRIANGLES, plane.vertexCount, GL_UNSIGNED_SHORT, nullptr);
+	glBindVertexArray(0);
+}
+
+void RenderSkybox()
+{
+	glDepthFunc(GL_LEQUAL);
+	glUseProgram(g_skyboxShader.GetProgram());
+	SetUniform(g_skyboxShader);
+
+	glActiveTexture(GL_TEXTURE1);
+	int32_t skyTextureLocation = glGetUniformLocation(program, "u_SkyTexture");
+	glUniformMatrix4fv(projectionMatrixLocationTP, 1, GL_FALSE, projectionMatrix.getMatrix());
+	glUniformMatrix4fv(viewMatrixLocationTP, 1, GL_FALSE, viewMatrix.getMatrix());
+	glUniform1i(skyTextureLocation, 1);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, cubeMapID);
+
+	glBindVertexArray(skyboxVAO);
+	glDrawArrays(GL_TRIANGLES, 0, 36);
+	glBindVertexArray(0);
+	glDepthFunc(GL_LESS);
+}
+
+void Render2D()
+{
+	int width, height;
+	glfwGetWindowSize(window, &width, &height);
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glViewport(0, 0, width, height);
+	glClearColor(0.5f, 0.5f, 0.5f, 1.f);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	glDisable(GL_CULL_FACE);
+	glDisable(GL_DEPTH_TEST);
+	glDepthMask(GL_FALSE);
+
+	glUseProgram(g_2DShader.GetProgram());
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, texturesID[0]);
+	glBindVertexArray(VAO2D);
+
+	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+	//glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+}
+
+void RenderLightBuffer()
+{
+	glBindFramebuffer(GL_FRAMEBUFFER, shadowmapFBO);
+	glViewport(0, 0, shadowmap_resolution, shadowmap_resolution);
+	glCullFace(GL_BACK);
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	
+	glUseProgram(programTP);
+
+	projectionMatrixLight = projectionMatrixLight.Ortho(-10, 10, 10, -10, -1, 10);
+	viewMatrixLight = viewMatrixLight.LookAt(lightPosition, Vec3(0, 0, 0), Vec3(0, 1, 0));
+	depthMVP = projectionMatrixLight * viewMatrixLight;
+	Matrix4 biasMatrix = biasMatrix.biasMatrix();
+	depthMVP = biasMatrix * depthMVP;
+
+	glUniformMatrix4fv(depthMVPMatrixLocation, 1, GL_FALSE, depthMVP.getMatrix());
+
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+	glBindTexture(GL_TEXTURE_2D, 0);
+}
+
+void RenderScene(GLFWwindow* window)
+{
+
+	int width, height;
+	glfwGetWindowSize(window, &width, &height);
+
+	// vers le FBO
+	glBindFramebuffer(GL_FRAMEBUFFER, FBO);
+	// Defini le viewport en pleine fenetre
+	glViewport(0, 0, width, height);
+	glClearColor(0.5f, 0.5f, 0.5f, 1.f);
+
+	//Culling and depth buffer
+	glEnable(GL_CULL_FACE);
+	glFrontFace(GL_CW);
+	glCullFace(GL_BACK);
+	glEnable(GL_DEPTH_TEST);
+	glDepthMask(GL_TRUE);
+
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	//----------------------------------------Matrix---------------------------------------------------
+	//projectionMatrix = projectionMatrix.Ortho(-windowWidth/2, windowWidth/2, -windowHeight/2, windowHeight/2, -1, 1);
+	projectionMatrix = projectionMatrix.Perspective(FOV, windowWidth / (float)windowHeight, 0.0001f, 100.f);
+	viewMatrix = viewMatrix.LookAt(camPos, Vec3(0.0f, 0.0f, 0.0f), Vec3(0.0f, 1.0f, 0.0f));
+
+	//-----------------------------------------------------Render---------------------------------------------------------------------
+	RenderSuzanne();
+	RenderTeapot();
+	RenderPlane();
+	RenderSkybox();
+
+
+	//---------------------------------------------------Default binding---------------------------------------------------------------------
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, 0);
+	glDisable(GL_TEXTURE_2D);
+
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, 0);
+	glDisable(GL_TEXTURE_2D);
+}
+
+#pragma endregion
+
+#pragma region Inputs_Functions
+
 void mouse_callback(GLFWwindow* window, double xpos, double ypos)
 {
 	if (firstMouse)
@@ -748,146 +932,7 @@ void InitInputs() {
 	//Scroll callback
 	glfwSetScrollCallback(window, scroll_callback);
 }
-
-void Shutdown()
-{
-	DestroyTexture(&texturesID[0]);
-	DestroyTexture(&texturesID[1]);
-	DestroyTexture(&texturesID[2]);
-	glDeleteTextures(1, &cubeMapID);
-
-	glDeleteFramebuffers(1, &FBO);
-
-	g_basicShader.Destroy();
-	g_teapotShader.Destroy();
-	g_2DShader.Destroy();
-	g_skyboxShader.Destroy();
-}
-
-void Display(GLFWwindow* window)
-{
-
-	int width, height;
-	glfwGetWindowSize(window, &width, &height);
-
-	// vers le FBO
-	glBindFramebuffer(GL_FRAMEBUFFER, FBO);
-	// Defini le viewport en pleine fenetre
-	glViewport(0, 0, width, height);
-	glClearColor(0.5f, 0.5f, 0.5f, 1.f);
-
-	//Culling and depth buffer
-	glEnable(GL_CULL_FACE);
-	glFrontFace(GL_CW);
-	glCullFace(GL_BACK);
-	glEnable(GL_DEPTH_TEST);
-	glDepthMask(GL_TRUE);
-
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-	//----------------------------------------Matrix---------------------------------------------------
-	//projectionMatrix = projectionMatrix.Ortho(-windowWidth/2, windowWidth/2, -windowHeight/2, windowHeight/2, -1, 1);
-	projectionMatrix = projectionMatrix.Perspective(FOV, windowWidth / (float)windowHeight, 0.0001f, 100.f);
-	viewMatrix = viewMatrix.LookAt(camPos, Vec3(0.0f, 0.0f, 0.0f), Vec3(0.0f, 1.0f, 0.0f));
-
-	//-----------------------------------------------------Suzanne model---------------------------------------------------------------------
-	glUseProgram(g_basicShader.GetProgram());
-	SetUniform(g_basicShader);
-
-	//Texture
-	glActiveTexture(GL_TEXTURE0);
-	glEnable(GL_TEXTURE_2D);
-	int texture_location = glGetUniformLocation(program, "u_TextureSampler");
-	glUniform1i(texture_location, 0);
-	glBindTexture(GL_TEXTURE_2D, g_TextureObject);
-
-	//Time
-	currentTime = (float)glfwGetTime();
-	
-	modelMatrix = modelMatrix.Scale(1.f) * modelMatrix.Rotate(Vec3(0.0f, -currentTime, 0.f)) * modelMatrix.Translate(1.5f, 2.f, 0.f) * modelMatrix.Rotate(Vec3(0.0f, -currentTime, 0.f));
-
-	//Matrix uniforms
-	glUniformMatrix4fv(modelMatrixLocation, 1, GL_FALSE, modelMatrix.getMatrix());
-	glUniformMatrix4fv(projectionMatrixLocation, 1, GL_FALSE, projectionMatrix.getMatrix());
-	glUniformMatrix4fv(viewMatrixLocation, 1, GL_FALSE, viewMatrix.getMatrix());
-	glUniform3f(cameraPos_location, camPos.x, camPos.y, camPos.z);
-	
-	//Active VAO -> Render -> reset VAO
-	glBindVertexArray(VAO);
-	glDrawElements(GL_TRIANGLES, mesh.vertexCount, GL_UNSIGNED_SHORT, nullptr); 
-	glBindVertexArray(0);
-
-	//---------------------------------------------------Teapot model---------------------------------------------------------------------------
-	glUseProgram(g_teapotShader.GetProgram());
-	SetUniform(g_teapotShader);
-
-	//Texture
-	glActiveTexture(GL_TEXTURE0);
-	glEnable(GL_TEXTURE_2D);
-	int TP_location = glGetUniformLocation(programTP, "u_TextureSampler");
-	glUniform1i(TP_location, 0);
-	glBindTexture(GL_TEXTURE_2D, g_TextureObjectTeapot);
-
-	Matrix4 modelMatrixTeapot;
-	modelMatrixTeapot = modelMatrixTeapot.Scale(1.f) * modelMatrixTeapot.Rotate(Vec3(0.f, 0.f, 0.f)) * modelMatrixTeapot.Translate(0.f, 0.f, 0.f);
-	
-	glUniformMatrix4fv(modelMatrixLocationTP, 1, GL_FALSE, modelMatrixTeapot.getMatrix());
-	glUniformMatrix4fv(projectionMatrixLocationTP, 1, GL_FALSE, projectionMatrix.getMatrix());
-	glUniformMatrix4fv(viewMatrixLocationTP, 1, GL_FALSE, viewMatrix.getMatrix());
-	glUniform3f(cameraPos_locationTP, camPos.x, camPos.y, camPos.z);
-
-	glBindVertexArray(VAOTP);
-	glDrawElements(GL_TRIANGLES, teapot.vertexCount, GL_UNSIGNED_SHORT, nullptr);
-	
-	glBindVertexArray(0);
-	//---------------------------------------------------Plane model---------------------------------------------------------------------------
-	glUseProgram(g_teapotShader.GetProgram());
-	SetUniform(g_teapotShader);
-
-	//Texture
-	glActiveTexture(GL_TEXTURE0);
-	glEnable(GL_TEXTURE_2D);
-	texture_location = glGetUniformLocation(program, "u_TextureSampler");
-	glUniform1i(texture_location, 0);
-	glBindTexture(GL_TEXTURE_2D, g_TextureObject);
-
-	modelMatrix = modelMatrix.Scale(1.f) * modelMatrix.Rotate(Vec3(0.0f, 0.0f, 0.0f)) * modelMatrix.Translate(0.f, 0.f, 0.f);
-
-	//Matrix uniforms
-	glUniformMatrix4fv(modelMatrixLocation, 1, GL_FALSE, modelMatrix.getMatrix());
-	glUniformMatrix4fv(projectionMatrixLocation, 1, GL_FALSE, projectionMatrix.getMatrix());
-	glUniformMatrix4fv(viewMatrixLocation, 1, GL_FALSE, viewMatrix.getMatrix());
-	glUniform3f(cameraPos_location, camPos.x, camPos.y, camPos.z);
-
-	//Active VAO -> Render -> reset VAO
-	glBindVertexArray(PVAO);
-	glDrawElements(GL_TRIANGLES, plane.vertexCount, GL_UNSIGNED_SHORT, nullptr);
-	glBindVertexArray(0);
-	//---------------------------------------------------Sky model---------------------------------------------------------------------------
-	glDepthFunc(GL_LEQUAL);
-	glUseProgram(g_skyboxShader.GetProgram());
-	SetUniform(g_skyboxShader);
-
-	glActiveTexture(GL_TEXTURE1);
-	int32_t skyTextureLocation = glGetUniformLocation(program, "u_SkyTexture");
-	glUniformMatrix4fv(projectionMatrixLocationTP, 1, GL_FALSE, projectionMatrix.getMatrix());
-	glUniformMatrix4fv(viewMatrixLocationTP, 1, GL_FALSE, viewMatrix.getMatrix());
-	glUniform1i(skyTextureLocation, 1);
-	glBindTexture(GL_TEXTURE_CUBE_MAP, cubeMapID);
-
-	glBindVertexArray(skyboxVAO);
-	glDrawArrays(GL_TRIANGLES, 0, 36);
-	glBindVertexArray(0);
-	glDepthFunc(GL_LESS);
-
-	glActiveTexture(GL_TEXTURE1);
-	glBindTexture(GL_TEXTURE_2D, 0);
-	glDisable(GL_TEXTURE_2D);
-
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, 0);
-	glDisable(GL_TEXTURE_2D);
-}
+#pragma endregion
 
 int main(void)
 {
@@ -913,13 +958,12 @@ int main(void)
 	/* Loop until the user closes the window */
 	while (!glfwWindowShouldClose(window))
 	{
-
 		/* Render here */
-		//3D
-		Display(window);
-
 		//RenderBuffer light for shadow
 		RenderLightBuffer();
+
+		//3D
+		RenderScene(window);
 
 		//2D
 		Render2D();
