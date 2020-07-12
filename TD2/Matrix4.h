@@ -19,6 +19,7 @@ public:
 	Matrix4 Ortho(float left, float right, float bottom, float top, float znear, float zfar);
 	Matrix4 Perspective(float FoV, float aspectRatio, float n, float f);
 	Matrix4 LookAt(Vec3 position, Vec3 target, Vec3 up);
+	Matrix4 biasMatrix();
 
 	Matrix4& operator=(Matrix4);
 	Matrix4 operator*(const Matrix4& m);

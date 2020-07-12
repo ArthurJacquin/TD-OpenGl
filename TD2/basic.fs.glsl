@@ -48,5 +48,7 @@ void main(void)
 
 	vec3 I = normalize(v_fragPos - u_camPos);
     vec3 R = reflect(I, normalize(v_normals));
+
+
 	gl_FragColor = vec4(texture(u_SkyTexture, R).rgb, 1.0);	
 }

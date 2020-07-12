@@ -83,6 +83,7 @@ int modelMatrixLocation;
 int viewMatrixLocation;
 int projectionMatrixLocation;
 int cameraPos_location;
+int depthModelMatrixLocation;
 
 int modelMatrixLocationTP;
 int viewMatrixLocationTP;
@@ -98,6 +99,12 @@ Matrix4 modelMatrix;
 Matrix4 projectionMatrix;
 Matrix4 viewMatrix;
 
+Matrix4 modelMatrixLight;
+Matrix4 projectionMatrixLight;
+Matrix4 viewMatrixLight;
+Vec3 lightPosition = Vec3(0.f, 5.0f, -5.0f);
+GLuint shadowmapTexture;
+GLuint shadowmapFBO;
 
 GLuint LoadTexture(const char* path)
 {
@@ -447,7 +454,7 @@ void SetUniform(GLShader &shader)
 
 	//------------------------------------------------- Position de la lumiere-----------------------------------------------
 	int lightPos_location = glGetUniformLocation(program, "u_light.pos");
-	glUniform3f(lightPos_location, 0.5f, 0.0f, -2.0f);
+	glUniform3f(lightPos_location, lightPosition.x, lightPosition.y, lightPosition.z);
 	int lightColor_location = glGetUniformLocation(program, "u_light.color");
 	glUniform3f(lightColor_location, 1.0f, 1.0f, 1.0f);
 
@@ -575,20 +582,34 @@ void InitFBOLight()
 {
 	unsigned int depthMapFBO;
 	glGenFramebuffers(1, &depthMapFBO);
-
-	GLuint shadowmapTexture; 
-	GLuint shadowmapFBO; 
 	const int shadowmap_resolution = 1024;
 	GLenum shadowmap_precision = GL_DEPTH_COMPONENT24; 
 	GLenum shadowmap_type =GL_UNSIGNED_INT;
 
-	glGenTextures( 1, &shadowmapTexture );
+	glGenTextures( 4, &shadowmapTexture );
 	glBindTexture( GL_TEXTURE_2D, shadowmapTexture );
 	glTexImage2D(GL_TEXTURE_2D, 0, shadowmap_precision, shadowmap_resolution, shadowmap_resolution, 0, GL_DEPTH_COMPONENT, shadowmap_type, 0);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+}
+
+void RenderLightBuffer()
+{
+
+	glActiveTexture(GL_TEXTURE4);
+	glEnable(GL_TEXTURE_2D);
+	int TP_location = glGetUniformLocation(programTP, "u_ShadowMap");
+	glUniform1i(TP_location, 0);
+	glBindTexture(GL_TEXTURE_2D, shadowmapTexture);
+
+	projectionMatrixLight = projectionMatrixLight.Ortho(-10, 10, 10, -10, 1.0, 7.5);
+	viewMatrixLight = viewMatrixLight.LookAt(lightPosition, Vec3(0, 0, 0), Vec3(0, 1, 0));
+	modelMatrixLight = projectionMatrixLight * viewMatrixLight;
+	Matrix4 biasMatrix = biasMatrix.biasMatrix();
+	modelMatrixLight = biasMatrix * modelMatrixLight;
+	glUniformMatrix4fv(depthModelMatrixLocation, 1, GL_FALSE, modelMatrixLight.getMatrix());
 
 	glGenFramebuffers(1, &shadowmapFBO);
 	glBindFramebuffer(GL_FRAMEBUFFER, shadowmapFBO);
@@ -597,7 +618,7 @@ void InitFBOLight()
 	glDrawBuffer(GL_NONE);
 	glReadBuffer(GL_NONE);
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-	glBindTexture( GL_TEXTURE_2D, 0);
+	glBindTexture(GL_TEXTURE_2D, 0);
 }
 
 void Initialize()
@@ -644,6 +665,8 @@ void Initialize()
 	InitCubeMap();
 	InitSkybox();
 
+	InitFBOLight();
+
 	//Uniforms
 	modelMatrixLocation = glGetUniformLocation(g_basicShader.GetProgram(), "u_modelMatrix");
 	viewMatrixLocation = glGetUniformLocation(g_basicShader.GetProgram(), "u_viewMatrix");
@@ -655,6 +678,8 @@ void Initialize()
 	projectionMatrixLocationTP = glGetUniformLocation(g_teapotShader.GetProgram(), "u_projectionMatrix");
 	cameraPos_locationTP = glGetUniformLocation(g_teapotShader.GetProgram(), "u_camPos");
 
+	//Uniform Light
+	depthModelMatrixLocation = glGetUniformLocation(g_teapotShader.GetProgram(), "u_modelMatrixLight");
 }
 
 //Update camera pos
@@ -889,6 +914,10 @@ int main(void)
 		/* Render here */
 		//3D
 		Display(window);
+
+		//RenderBuffer light for shadow
+		RenderLightBuffer();
+
 		//2D
 		Render2D();
 
