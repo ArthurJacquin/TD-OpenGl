@@ -20,12 +20,15 @@ struct Material{
 varying vec3 v_fragPos;
 varying vec2 v_texcoords;
 varying vec3 v_normals;
+varying vec4 ShadowCoord;
 
 uniform Light u_light;
 uniform Material u_mat;
 uniform sampler2D u_TextureSampler;
 uniform vec3 u_camPos;
 uniform samplerCube u_SkyTexture;
+uniform sampler2D u_ShadowMap;
+
 
 vec3 FresnelSchlick(vec3 f0, float cosTheta) {
 	return f0 + (vec3(1.0) - f0) * pow(1.0 - cosTheta, 5.0);
@@ -66,6 +69,15 @@ void main(void)
 	vec3 I = normalize(u_camPos - v_fragPos);
     vec3 R1 = reflect(I, normalize(v_normals));
 	vec3 indirectColor = vec3(textureCube(u_SkyTexture, R1).rgb);	
+	
+	//Shadow
+	float visibility = 1.0;
+	if ( texture(u_ShadowMap, ShadowCoord.xy ).z  <  ShadowCoord.z){
+		visibility = 0.5;
+	}
 
-	gl_FragColor = vec4(ambient + (indirectColor * 0.1) + diffuseColor + specularColor, 1.0);// + fragColor;
+	 //gl_FragColor = vec4(ambient + (indirectColor * 0.1) + (visibility * diffuseColor) + (visibility * specularColor), 1.0);// + fragColor;
+	 //float depthValue = texture(u_ShadowMap, ShadowCoord.xy).x;
+	 //gl_FragColor = vec4(vec3(depthValue, depthValue, depthValue), 1.0);
+	 gl_FragColor = vec4((visibility * diffuseColor), 1.0);
 }
