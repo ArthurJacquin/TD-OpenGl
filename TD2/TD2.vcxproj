@@ -174,6 +174,8 @@
   <ItemGroup>
     <None Include="basic.fs.glsl" />
     <None Include="basic.vs.glsl" />
+    <None Include="depth.fs.glsl" />
+    <None Include="depth.vs.glsl" />
     <None Include="PostProcess.fs.glsl" />
     <None Include="PostProcess.vs.glsl" />
     <None Include="skyboxShader.fs.glsl" />

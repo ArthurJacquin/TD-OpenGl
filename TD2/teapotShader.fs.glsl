@@ -28,7 +28,7 @@ uniform Material u_mat;
 uniform sampler2D u_TextureSampler;
 uniform vec3 u_camPos;
 uniform samplerCube u_SkyTexture;
-uniform sampler2D u_ShadowMap;
+uniform sampler2DShadow u_ShadowMap;
 
 
 vec3 FresnelSchlick(vec3 f0, float cosTheta) {
@@ -38,22 +38,6 @@ vec3 FresnelSchlick(vec3 f0, float cosTheta) {
 vec3 Reflectance(vec3 albedo, float metallic)
 {
 	return mix(vec3(0.04), albedo, metallic);
-}
-
-float ShadowCalculation(vec4 fragPosLightSpace)
-{
-    // perform perspective divide
-    vec3 projCoords = ShadowCoord.xyz / ShadowCoord.w;
-    // transform to [0,1] range
-    projCoords = projCoords * 0.5 + 0.5;
-    // get closest depth value from light's perspective (using [0,1] range fragPosLight as coords)
-    float closestDepth = texture(u_ShadowMap, projCoords.xy).r; 
-    // get depth of current fragment from light's perspective
-    float currentDepth = projCoords.z;
-    // check whether current frag pos is in shadow
-    float shadow = currentDepth > closestDepth  ? 1.0 : 0.0;
-
-	return shadow;
 }
 
 void main(void)
@@ -87,9 +71,9 @@ void main(void)
 	vec3 indirectColor = vec3(textureCube(u_SkyTexture, R1).rgb);	
 	
 	//Shadow
-	float shadow = ShadowCalculation(ShadowCoord);  
+	float visibility = texture( u_ShadowMap, vec3(ShadowCoord.xy, (ShadowCoord.z) / ShadowCoord.w) );  
 	
 	//gl_FragColor = vec4((ambient + (indirectColor * 0.1) + diffuseColor + specularColor) * fragColor.xyz, 1.0);
-	gl_FragColor = vec4((ambient + (1.0 - shadow) * (diffuseColor + specularColor)) * fragColor.xyz, 1.0);
-	//gl_FragColor = vec4(texture(u_ShadowMap, ShadowCoord.xy).r, 1.0);
+	//gl_FragColor = vec4( (ambient + visibility * (diffuseColor + specularColor) ) * fragColor.xyz, 1.0);
+	gl_FragColor = vec4(visibility * diffuseColor * u_light.color, 1.0);
 }

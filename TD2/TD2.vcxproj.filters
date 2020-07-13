@@ -82,5 +82,11 @@
     <None Include="skyboxShader.vs.glsl">
       <Filter>Fichiers de ressources</Filter>
     </None>
+    <None Include="depth.vs.glsl">
+      <Filter>Fichiers de ressources</Filter>
+    </None>
+    <None Include="depth.fs.glsl">
+      <Filter>Fichiers de ressources</Filter>
+    </None>
   </ItemGroup>
 </Project>

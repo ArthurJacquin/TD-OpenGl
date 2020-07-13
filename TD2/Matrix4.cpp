@@ -136,10 +136,10 @@ Matrix4 Matrix4::LookAt(Vec3 position, Vec3 target, Vec3 up)
 Matrix4 Matrix4::biasMatrix()
 {
 	Matrix4 mat(
-		0.5, 0.0, 0.0, 0.0,
-		0.0, 0.5, 0.0, 0.0,
-		0.0, 0.0, 0.5, 0.0,
-		0.5, 0.5, 0.5, 1.0);
+		0.5, 0.0, 0.0, 0.5,
+		0.0, 0.5, 0.0, 0.5,
+		0.0, 0.0, 0.5, 0.5,
+		0.0, 0.0, 0.0, 1.0);
 
 	return mat;
 }
