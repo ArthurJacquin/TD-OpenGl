@@ -99,13 +99,15 @@ GLShader g_skyboxShader;
 GLuint skyboxVAO, skyboxVBO;
 
 Matrix4 modelMatrix;
+Matrix4 modelMatrixTeapot;
+Matrix4 modelMatrixPlane;
 Matrix4 projectionMatrix;
 Matrix4 viewMatrix;
 
 Matrix4 depthMVP;
 Matrix4 projectionMatrixLight;
 Matrix4 viewMatrixLight;
-Vec3 lightPosition = Vec3(0.f, 1.0f, 3.0f);
+Vec3 lightPosition = Vec3(-2.f, 3.0f, 3.0f);
 GLuint shadowmapTexture;
 GLuint shadowmapFBO;
 
@@ -382,51 +384,6 @@ void InitSkybox()
 }
 
 //Init VAO, VBO and IBO
-void InitBufferPlane()
-{
-	GLuint PVBO;
-	GLuint PIBO;
-	program = g_basicShader.GetProgram();
-
-	//Création VAO
-	glGenVertexArrays(1, &PVAO);
-	glBindVertexArray(PVAO);
-
-	//Création VBO
-	glGenBuffers(1, &PVBO);
-	glBindBuffer(GL_ARRAY_BUFFER, PVBO);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(Vertex) * plane.vertexCount, &plane.vertices[0], GL_STATIC_DRAW);
-
-	//Création IBO
-	glGenBuffers(1, &PIBO);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, PIBO);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned short) * plane.indices.size() - 1, &plane.indices[0], GL_STATIC_DRAW);
-
-	//Position
-	int loc_position = glGetAttribLocation(program, "a_position");
-	glVertexAttribPointer(loc_position, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), nullptr);
-	glEnableVertexAttribArray(loc_position);
-
-	int loc_position_depth = glGetAttribLocation(depthProgram, "vertexPosition_modelspace");
-	glVertexAttribPointer(loc_position_depth, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), nullptr);
-	glEnableVertexAttribArray(loc_position_depth);
-
-	//UV
-	int texcoords_location = glGetAttribLocation(program, "a_texcoords");
-	glVertexAttribPointer(texcoords_location, 3, GL_FLOAT, false, sizeof(Vertex), (void*)offsetof(Vertex, texCoord.x));
-	glEnableVertexAttribArray(texcoords_location);
-
-	//Normals
-	int normals_location = glGetAttribLocation(program, "a_normals");
-	glVertexAttribPointer(normals_location, 3, GL_FLOAT, false, sizeof(Vertex), (void*)offsetof(Vertex, normal.x));
-	glEnableVertexAttribArray(normals_location);
-
-	//Désactivation des buffers
-	glBindVertexArray(0);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-}
-
 void InitBuffersSuzanne() 
 {
 	GLuint VBO;
@@ -514,6 +471,51 @@ void InitBuffersTeapot()
 	glEnableVertexAttribArray(normals_location);
 
 	g_TextureObjectTeapot = LoadTexture("teapot.png");
+
+	//Désactivation des buffers
+	glBindVertexArray(0);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+}
+
+void InitBufferPlane()
+{
+	GLuint PVBO;
+	GLuint PIBO;
+	program = g_teapotShader.GetProgram();
+
+	//Création VAO
+	glGenVertexArrays(1, &PVAO);
+	glBindVertexArray(PVAO);
+
+	//Création VBO
+	glGenBuffers(1, &PVBO);
+	glBindBuffer(GL_ARRAY_BUFFER, PVBO);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(Vertex) * plane.vertexCount, &plane.vertices[0], GL_STATIC_DRAW);
+
+	//Création IBO
+	glGenBuffers(1, &PIBO);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, PIBO);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(unsigned short) * plane.indices.size() - 1, &plane.indices[0], GL_STATIC_DRAW);
+
+	//Position
+	int loc_position = glGetAttribLocation(program, "a_position");
+	glVertexAttribPointer(loc_position, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), nullptr);
+	glEnableVertexAttribArray(loc_position);
+
+	int loc_position_depth = glGetAttribLocation(depthProgram, "vertexPosition_modelspace");
+	glVertexAttribPointer(loc_position_depth, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), nullptr);
+	glEnableVertexAttribArray(loc_position_depth);
+
+	//UV
+	int texcoords_location = glGetAttribLocation(program, "a_texcoords");
+	glVertexAttribPointer(texcoords_location, 3, GL_FLOAT, false, sizeof(Vertex), (void*)offsetof(Vertex, texCoord.x));
+	glEnableVertexAttribArray(texcoords_location);
+
+	//Normals
+	int normals_location = glGetAttribLocation(program, "a_normals");
+	glVertexAttribPointer(normals_location, 3, GL_FLOAT, false, sizeof(Vertex), (void*)offsetof(Vertex, normal.x));
+	glEnableVertexAttribArray(normals_location);
 
 	//Désactivation des buffers
 	glBindVertexArray(0);
@@ -629,8 +631,9 @@ void RenderSuzanne()
 	//Time
 	currentTime = (float)glfwGetTime();
 
-	//modelMatrix = modelMatrix.Scale(1.f) * modelMatrix.Rotate(Vec3(0.0f, -currentTime, 0.f)) * modelMatrix.Translate(1.5f, 2.f, 0.f) * modelMatrix.Rotate(Vec3(0.0f, -currentTime, 0.f));
-	modelMatrix = modelMatrix.Scale(1.f) * modelMatrix.Translate(1.0f, 2.f, 0.f);
+	modelMatrix = modelMatrix.Scale(1.f) * modelMatrix.Rotate(Vec3(0.0f, -currentTime, 0.f)) * modelMatrix.Translate(1.5f, 2.f, 0.f) * modelMatrix.Rotate(Vec3(0.0f, -currentTime, 0.f));
+	//modelMatrix = modelMatrix.Scale(1.f) *modelMatrix.Translate(1.0f, 2.f, 0.f);
+	
 	//Matrix uniforms
 	glUniformMatrix4fv(modelMatrixLocation, 1, GL_FALSE, modelMatrix.getMatrix());
 	glUniformMatrix4fv(projectionMatrixLocation, 1, GL_FALSE, projectionMatrix.getMatrix());
@@ -638,9 +641,10 @@ void RenderSuzanne()
 	glUniform3f(cameraPos_location, camPos.x, camPos.y, camPos.z);
 
 	//Bias
-	//Matrix4 depthBiasMVP = depthBiasMVP.biasMatrix() * depthMVP;
-	//DepthBiasID = glGetUniformLocation(g_basicShader.GetProgram(), "DepthBiasMVP");
-	//glUniformMatrix4fv(DepthBiasID, 1, GL_FALSE, depthBiasMVP.getMatrix());
+	Matrix4 bias = bias.biasMatrix();
+	Matrix4 depthBiasMVP = bias * depthMVP;
+	DepthBiasID = glGetUniformLocation(g_basicShader.GetProgram(), "DepthBiasMVP");
+	glUniformMatrix4fv(DepthBiasID, 1, GL_FALSE, depthBiasMVP.getMatrix());
 
 	//Texture
 	glActiveTexture(GL_TEXTURE0);
@@ -648,6 +652,11 @@ void RenderSuzanne()
 	glBindTexture(GL_TEXTURE_2D, g_TextureObject);
 	int texture_location = glGetUniformLocation(program, "u_TextureSampler");
 	glUniform1i(texture_location, 0);
+
+	//Shadow map
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, shadowmapTexture);
+	glUniform1i(shadowMapLocation, 1);
 
 	//Active VAO -> Render -> reset VAO
 	glBindVertexArray(VAO);
@@ -660,6 +669,8 @@ void RenderTeapot()
 	glUseProgram(g_teapotShader.GetProgram());
 	SetUniform(g_teapotShader);
 
+	currentTime = (float)glfwGetTime();
+
 	Matrix4 modelMatrixTeapot;
 	modelMatrixTeapot = modelMatrixTeapot.Scale(1.f) * modelMatrixTeapot.Rotate(Vec3(0.f, 0.f, 0.f)) * modelMatrixTeapot.Translate(0.f, 0.f, 0.f);
 
@@ -667,7 +678,7 @@ void RenderTeapot()
 	glUniformMatrix4fv(projectionMatrixLocationTP, 1, GL_FALSE, projectionMatrix.getMatrix());
 	glUniformMatrix4fv(viewMatrixLocationTP, 1, GL_FALSE, viewMatrix.getMatrix());
 	glUniform3f(cameraPos_locationTP, camPos.x, camPos.y, camPos.z);
-
+	
 	//Bias
 	Matrix4 bias = bias.biasMatrix();
 	Matrix4 depthBiasMVP = bias * depthMVP;
@@ -680,6 +691,11 @@ void RenderTeapot()
 	glBindTexture(GL_TEXTURE_2D, g_TextureObjectTeapot);
 	int TP_location = glGetUniformLocation(programTP, "u_TextureSampler");
 	glUniform1i(TP_location, 0);
+	
+	//Shadow map
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, shadowmapTexture);
+	glUniform1i(shadowMapLocation, 1);
 
 	glBindVertexArray(VAOTP);
 	glDrawElements(GL_TRIANGLES, teapot.vertexCount, GL_UNSIGNED_SHORT, nullptr);
@@ -691,13 +707,13 @@ void RenderPlane()
 	glUseProgram(g_teapotShader.GetProgram());
 	SetUniform(g_teapotShader);
 
-	modelMatrix = modelMatrix.Scale(1.f) * modelMatrix.Rotate(Vec3(0.0f, 0.0f, 0.0f)) * modelMatrix.Translate(0.f, 0.f, 0.f);
+	modelMatrixPlane = modelMatrixPlane.Scale(1.f) * modelMatrixPlane.Rotate(Vec3(0.0f, 0.0f, 0.0f)) * modelMatrixPlane.Translate(0.f, 0.f, 0.f);
 
 	//Matrix uniforms
-	glUniformMatrix4fv(modelMatrixLocation, 1, GL_FALSE, modelMatrix.getMatrix());
-	glUniformMatrix4fv(projectionMatrixLocation, 1, GL_FALSE, projectionMatrix.getMatrix());
-	glUniformMatrix4fv(viewMatrixLocation, 1, GL_FALSE, viewMatrix.getMatrix());
-	glUniform3f(cameraPos_location, camPos.x, camPos.y, camPos.z);
+	glUniformMatrix4fv(modelMatrixLocationTP, 1, GL_FALSE, modelMatrixPlane.getMatrix());
+	glUniformMatrix4fv(projectionMatrixLocationTP, 1, GL_FALSE, projectionMatrix.getMatrix());
+	glUniformMatrix4fv(viewMatrixLocationTP, 1, GL_FALSE, viewMatrix.getMatrix());
+	glUniform3f(cameraPos_locationTP, camPos.x, camPos.y, camPos.z);
 
 	//Bias
 	Matrix4 depthBiasMVP = depthBiasMVP.biasMatrix() * depthMVP;
@@ -707,9 +723,14 @@ void RenderPlane()
 	//Texture
 	glActiveTexture(GL_TEXTURE0);
 	glEnable(GL_TEXTURE_2D);
-	texture_location = glGetUniformLocation(program, "u_TextureSampler");
+	texture_location = glGetUniformLocation(programTP, "u_TextureSampler");
 	glUniform1i(texture_location, 0);
 	glBindTexture(GL_TEXTURE_2D, shadowmapTexture);
+
+	//Shadow map
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, shadowmapTexture);
+	glUniform1i(shadowMapLocation, 1);
 
 	//Active VAO -> Render -> reset VAO
 	glBindVertexArray(PVAO);
@@ -750,21 +771,28 @@ void RenderLightBuffer()
 
 	projectionMatrixLight = projectionMatrixLight.Ortho(-10, 10, -10, 10, -10, 20);
 	viewMatrixLight = viewMatrixLight.LookAt(lightPosition, Vec3(0, 0, 0), Vec3(0, 1, 0));
-	depthMVP = projectionMatrixLight * viewMatrixLight;
-
-	glUniformMatrix4fv(depthMatrixLocation, 1, GL_FALSE, depthMVP.getMatrix());
 
 	//Suzanne
+	depthMVP = projectionMatrixLight * viewMatrixLight * modelMatrix;
+	glUniformMatrix4fv(depthMatrixLocation, 1, GL_FALSE, depthMVP.getMatrix());
+
 	glBindVertexArray(VAO);
 	glDrawElements(GL_TRIANGLES, mesh.vertexCount, GL_UNSIGNED_SHORT, nullptr);
 	glBindVertexArray(0);
 
 	//Teapot
+	depthMVP = projectionMatrixLight * viewMatrixLight * modelMatrixTeapot;
+	glUniformMatrix4fv(depthMatrixLocation, 1, GL_FALSE, depthMVP.getMatrix());
+
 	glBindVertexArray(VAOTP);
 	glDrawElements(GL_TRIANGLES, teapot.vertexCount, GL_UNSIGNED_SHORT, nullptr);
 	glBindVertexArray(0);
 
 	//Plane
+	depthMVP = projectionMatrixLight * viewMatrixLight * modelMatrixPlane;
+	glUniformMatrix4fv(depthMatrixLocation, 1, GL_FALSE, depthMVP.getMatrix());
+
+
 	glBindVertexArray(PVAO);
 	glDrawElements(GL_TRIANGLES, plane.vertexCount, GL_UNSIGNED_SHORT, nullptr);
 	glBindVertexArray(0);
@@ -795,10 +823,6 @@ void RenderScene(GLFWwindow* window)
 	//projectionMatrix = projectionMatrix.Ortho(-windowWidth/2, windowWidth/2, -windowHeight/2, windowHeight/2, -1, 1);
 	projectionMatrix = projectionMatrix.Perspective(FOV, windowWidth / (float)windowHeight, 0.0001f, 100.f);
 	viewMatrix = viewMatrix.LookAt(camPos, Vec3(0.0f, 0.0f, 0.0f), Vec3(0.0f, -1.0f, 0.0f));
-
-	glActiveTexture(GL_TEXTURE1);
-	glBindTexture(GL_TEXTURE_2D, shadowmapTexture);
-	glUniform1i(shadowMapLocation, 1);
 
 	//-----------------------------------------------------Render---------------------------------------------------------------------
 	RenderSuzanne();
@@ -906,7 +930,7 @@ int main(void)
 	InitInputs();
 
 	/* Loop until the user closes the window */
-	while (!glfwWindowShouldClose(window))
+	while (!glfwWindowShouldClose(window) && glfwGetKey(window, GLFW_KEY_ESCAPE) != GLFW_PRESS)
 	{
 		/* Render here */
 		//RenderBuffer light for shadow

@@ -22,7 +22,7 @@ void main(void)
 	v_normals = normalize(v_normals);
 	v_fragPos = vec3(u_modelMatrix * vec4(a_position , 1.0));
 
-	ShadowCoord = DepthBiasMVP * vec4(a_position , 1.0);
+	ShadowCoord = DepthBiasMVP * u_modelMatrix * vec4(a_position , 1.0);
 
 	gl_Position = u_projectionMatrix * u_viewMatrix * u_modelMatrix * vec4(a_position , 1.0);
 }
