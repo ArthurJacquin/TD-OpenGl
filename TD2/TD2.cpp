@@ -49,7 +49,6 @@ uint32_t programTP;
 GLuint VAO;
 GLuint PVAO;
 GLuint VAOTP;
-GLuint FBO;
 
 //Buffers 2D
 GLuint VAO2D;
@@ -163,11 +162,8 @@ void Shutdown()
 	DestroyTexture(&texturesID[2]);
 	glDeleteTextures(1, &cubeMapID);
 
-	glDeleteFramebuffers(1, &FBO);
-
 	g_basicShader.Destroy();
 	g_teapotShader.Destroy();
-	g_2DShader.Destroy();
 	g_skyboxShader.Destroy();
 }
 
@@ -525,76 +521,6 @@ void InitBuffersTeapot()
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 }
 
-//Init FBO
-void InitFBO()
-{
-	glEnable(GL_FRAMEBUFFER_SRGB);
-
-	//Création
-	glGenFramebuffers(1, &FBO);
-	glBindFramebuffer(GL_FRAMEBUFFER, FBO);
-
-	glGenTextures(1, &texturesID[0]);
-	glBindTexture(GL_TEXTURE_2D, texturesID[0]);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, windowWidth, windowHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, texturesID[0], 0);
-
-	//Load Depth
-	GLuint textureDepth = 0;
-	glGenTextures(1, &textureDepth);
-	glBindTexture(GL_TEXTURE_2D, textureDepth);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT32F, windowWidth, windowHeight, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glBindTexture(GL_TEXTURE_2D, 0);
-
-	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, textureDepth, 0);
-
-	//Check FBO
-	assert(glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE);
-
-	//Reset
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-}
-
-void Init2DRender()
-{
-	uint32_t program2D = g_2DShader.GetProgram();
-	
-	const float quadScreen[] = {
-		-1.f, 1.f, 0.f, 0.f,
-		-1.f, -1.f, 0.f, 1.f,
-		1.f, 1.f, 1.f, 0.f,
-		1.f, -1.f, 1.f, 1.f,
-	};
-
-	//Création VAO
-	glGenVertexArrays(1, &VAO2D);
-	glBindVertexArray(VAO2D);
-
-	//Création VBO
-	glGenBuffers(1, &VBO2D);
-	glBindBuffer(GL_ARRAY_BUFFER, VBO2D);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(quadScreen), quadScreen, GL_STATIC_DRAW);
-
-	glUseProgram(program2D);
-
-	// Position
-	int loc_position = glGetAttribLocation(program2D, "a_position");
-	glVertexAttribPointer(loc_position, 2, GL_FLOAT, GL_FALSE, sizeof(float) * 4, nullptr);
-	glEnableVertexAttribArray(loc_position);
-
-	//UV
-	int texcoords_location = glGetAttribLocation(program2D, "a_texcoords");
-	glVertexAttribPointer(texcoords_location, 2, GL_FLOAT, false, sizeof(float) * 4, (void*)(sizeof(float) * 2));
-	glEnableVertexAttribArray(texcoords_location);
-
-	//Désactivation des buffers
-	glBindVertexArray(0);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-}
-
 //Init Shadow buffer
 void InitFBOLight()
 {
@@ -666,12 +592,10 @@ void Initialize()
 	loadModel("teapot.obj", teapot);
 	loadModel("plane.obj", plane);
 
-	InitFBO();
 	InitBuffersSuzanne();
 	InitBuffersTeapot();
 	InitBufferPlane();
 
-	Init2DRender();
 	InitCubeMap();
 	InitSkybox();
 
@@ -812,29 +736,6 @@ void RenderSkybox()
 	glDepthFunc(GL_LESS);
 }
 
-void Render2D()
-{
-	int width, height;
-	glfwGetWindowSize(window, &width, &height);
-
-	glBindFramebuffer(GL_FRAMEBUFFER, 0);
-	glViewport(0, 0, width, height);
-	glClearColor(0.5f, 0.5f, 0.5f, 1.f);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-	glDisable(GL_CULL_FACE);
-	glDisable(GL_DEPTH_TEST);
-	glDepthMask(GL_FALSE);
-
-	glUseProgram(g_2DShader.GetProgram());
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, texturesID[0]);
-	glBindVertexArray(VAO2D);
-
-	glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-	//glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-}
-
 void RenderLightBuffer()
 {
 	glBindFramebuffer(GL_FRAMEBUFFER, shadowmapFBO);
@@ -877,8 +778,6 @@ void RenderScene(GLFWwindow* window)
 	int width, height;
 	glfwGetWindowSize(window, &width, &height);
 
-	// vers le FBO
-	glBindFramebuffer(GL_FRAMEBUFFER, FBO);
 	// Defini le viewport en pleine fenetre
 	glViewport(0, 0, width, height);
 	glClearColor(0.5f, 0.5f, 0.5f, 1.f);
@@ -895,7 +794,7 @@ void RenderScene(GLFWwindow* window)
 	//----------------------------------------Matrix---------------------------------------------------
 	//projectionMatrix = projectionMatrix.Ortho(-windowWidth/2, windowWidth/2, -windowHeight/2, windowHeight/2, -1, 1);
 	projectionMatrix = projectionMatrix.Perspective(FOV, windowWidth / (float)windowHeight, 0.0001f, 100.f);
-	viewMatrix = viewMatrix.LookAt(camPos, Vec3(0.0f, 0.0f, 0.0f), Vec3(0.0f, 1.0f, 0.0f));
+	viewMatrix = viewMatrix.LookAt(camPos, Vec3(0.0f, 0.0f, 0.0f), Vec3(0.0f, -1.0f, 0.0f));
 
 	glActiveTexture(GL_TEXTURE1);
 	glBindTexture(GL_TEXTURE_2D, shadowmapTexture);
@@ -1015,9 +914,6 @@ int main(void)
 
 		//3D
 		RenderScene(window);
-
-		//2D
-		Render2D();
 
 		/* Swap front and back buffers */
 		glfwSwapBuffers(window);

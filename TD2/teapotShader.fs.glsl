@@ -71,7 +71,11 @@ void main(void)
 	vec3 indirectColor = vec3(textureCube(u_SkyTexture, R1).rgb);	
 	
 	//Shadow
-	float visibility = texture( u_ShadowMap, vec3(ShadowCoord.xy, (ShadowCoord.z) / ShadowCoord.w) );  
+	float cosTheta = clamp(dot( v_normals, -dirToLight), 0.0, 1.0);
+	float bias = 0.005*tan(acos(cosTheta));
+	bias = clamp(bias, 0.0, 0.01);
+
+	float visibility = texture( u_ShadowMap, vec3(ShadowCoord.xy, (ShadowCoord.z) - bias / ShadowCoord.w) );  
 	
 	//gl_FragColor = vec4((ambient + (indirectColor * 0.1) + diffuseColor + specularColor) * fragColor.xyz, 1.0);
 	//gl_FragColor = vec4( (ambient + visibility * (diffuseColor + specularColor) ) * fragColor.xyz, 1.0);
